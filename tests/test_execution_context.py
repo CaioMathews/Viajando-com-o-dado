@@ -23,11 +23,15 @@ class ExecutionContextTests(unittest.TestCase):
                     if calls == failed_save:
                         raise PermissionError("Status bloqueado")
 
-                with patch.dict("os.environ", {"VCD_TRACKING_ENABLED": "1"}), patch.object(execution, "save_json", side_effect=save):
+                with (
+                    patch.dict("os.environ", {"VCD_TRACKING_ENABLED": "1"}),
+                    patch.object(execution, "save_json", side_effect=save),
+                ):
 
                     with self.assertRaises(PermissionError):
 
                         with execution.run_context():
+
                             pass
 
                 self.assertIsNone(execution.active_run())
@@ -35,6 +39,7 @@ class ExecutionContextTests(unittest.TestCase):
                 with patch.object(execution, "save_json"):
 
                     with execution.run_context() as state:
+
                         self.assertNotEqual(state["run_id"], failed_run)
 
                 self.assertIsNone(execution.active_run())
@@ -58,11 +63,15 @@ class ExecutionContextTests(unittest.TestCase):
                 def transform():
                     executed.append(True)
 
-                with patch.dict("os.environ", {"VCD_TRACKING_ENABLED": "1"}), patch.object(execution, "save_json", side_effect=save):
+                with (
+                    patch.dict("os.environ", {"VCD_TRACKING_ENABLED": "1"}),
+                    patch.object(execution, "save_json", side_effect=save),
+                ):
 
                     with execution.run_context() as outer:
 
                         with self.assertRaises(PermissionError):
+
                             transform()
 
                         self.assertIs(execution.active_run(), outer)
@@ -72,11 +81,15 @@ class ExecutionContextTests(unittest.TestCase):
                 self.assertIsNone(execution.active_run())
 
     def test_nested_runs_preserve_outer_context(self):
-        with patch.dict("os.environ", {"VCD_TRACKING_ENABLED": "1"}), patch.object(execution, "save_json") as save:
+        with (
+            patch.dict("os.environ", {"VCD_TRACKING_ENABLED": "1"}),
+            patch.object(execution, "save_json") as save,
+        ):
 
             with execution.run_context() as outer:
 
                 with execution.run_context() as inner:
+
                     self.assertIs(inner, outer)
 
                 self.assertIs(execution.active_run(), outer)
@@ -89,9 +102,13 @@ class ExecutionContextTests(unittest.TestCase):
         def transform():
             raise ValueError("Dado inválido")
 
-        with patch.dict("os.environ", {"VCD_TRACKING_ENABLED": "1"}), patch.object(execution, "save_json"):
+        with (
+            patch.dict("os.environ", {"VCD_TRACKING_ENABLED": "1"}),
+            patch.object(execution, "save_json"),
+        ):
 
             with self.assertRaisesRegex(ValueError, "Dado inválido"):
+
                 transform()
 
         self.assertIsNone(execution.active_run())

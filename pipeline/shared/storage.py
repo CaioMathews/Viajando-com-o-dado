@@ -88,6 +88,7 @@ def remove_work_directory(
 
 # Exclusão entre escritores e recuperação de publicações interrompidas.
 
+
 @contextmanager
 def output_lock(output_directory: Path):
     """A trava pertence ao processo: o sistema operacional a libera inclusive em encerramento brusco."""
@@ -175,7 +176,9 @@ def recover_transaction(
             valid_operation = False
 
     if not valid_operation or phase not in ["writing", "prepared", "published"]:
-        raise ValueError("Registro de recuperação inválido; os dados foram preservados para inspeção.")
+        raise ValueError(
+            "Registro de recuperação inválido; os dados foram preservados para inspeção."
+        )
 
     staging = parent / f".{output_directory.name}.staging-{operation}"
     backup = parent / f".{output_directory.name}.backup-{operation}"
@@ -216,6 +219,7 @@ def recover_output(
 
 
 # Gravação temporária, validação e publicação da nova versão.
+
 
 def write_parquet(
     dataframe: DataFrame,
@@ -273,6 +277,7 @@ def write_parquet(
             if partition_by_state:
 
                 for partition in sorted(staging.glob("state_folder=*")):
+
                     state_code = partition.name.split("=", 1)[1]
                     state_directory = staging / state_code
                     rename_output(partition, state_directory)
@@ -282,6 +287,7 @@ def write_parquet(
                 directories.append((staging, ""))
 
             for directory, state_code in directories:
+
                 parquet_files = sorted(directory.glob("part-*.parquet"))
                 prefix = source_name
 
@@ -289,6 +295,7 @@ def write_parquet(
                     prefix = f"{source_name}_{state_code}"
 
                 for number, path in enumerate(parquet_files, start=1):
+
                     file_name = f"{prefix}.parquet"
 
                     if len(parquet_files) > 1:
@@ -313,7 +320,9 @@ def write_parquet(
                 saved.schema.simpleString() != dataframe.schema.simpleString()
                 or saved_count != dataframe.count()
             ):
-                raise ValueError("A nova carga não preservou o schema ou a quantidade de registros.")
+                raise ValueError(
+                    "A nova carga não preservou o schema ou a quantidade de registros."
+                )
 
             save_transaction(journal, operation, "prepared")
 

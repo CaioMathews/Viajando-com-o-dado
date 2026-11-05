@@ -42,7 +42,12 @@ class RestartTests(unittest.TestCase):
             target = Path(directory) / "state.json"
             target.write_text('{"old": true}', encoding="utf-8")
 
-            with patch.object(Path, "replace", side_effect=PermissionError(errno.EACCES, "Denied")) as replace, patch.object(files, "sleep"):
+            with (
+                patch.object(
+                    Path, "replace", side_effect=PermissionError(errno.EACCES, "Denied")
+                ) as replace,
+                patch.object(files, "sleep"),
+            ):
 
                 with self.assertRaises(PermissionError):
 
@@ -54,7 +59,10 @@ class RestartTests(unittest.TestCase):
 
     def test_published_database_is_detected(self):
         connection = MagicMock()
-        connection.execute.return_value.fetchone.side_effect = [("pipeline_trace.current",), ({"year": "2025", "schema_name": "gold"},)]
+        connection.execute.return_value.fetchone.side_effect = [
+            ("pipeline_trace.current",),
+            ({"year": "2025", "schema_name": "gold"},),
+        ]
 
         with patch.object(runner.postgres, "get_connection") as connect:
 
@@ -62,26 +70,45 @@ class RestartTests(unittest.TestCase):
             self.assertTrue(runner.publication_exists("2025", "gold"))
 
     def test_existing_publication_never_runs_pipeline(self):
-        with patch("sys.argv", ["run_pipeline", "--if-needed"]), patch.object(runner, "publication_exists", return_value=True), patch.object(runner, "run_pipeline") as run:
+        with (
+            patch("sys.argv", ["run_pipeline", "--if-needed"]),
+            patch.object(runner, "publication_exists", return_value=True),
+            patch.object(runner, "run_pipeline") as run,
+        ):
 
             self.assertEqual(runner.main(), 0)
             run.assert_not_called()
 
     def test_first_initialization_runs_pipeline(self):
-        with patch("sys.argv", ["run_pipeline", "--if-needed"]), patch.object(runner, "publication_exists", return_value=False), patch.object(runner.execution, "current", return_value={"status": "not_started"}), patch.object(runner, "run_pipeline") as run:
+        with (
+            patch("sys.argv", ["run_pipeline", "--if-needed"]),
+            patch.object(runner, "publication_exists", return_value=False),
+            patch.object(runner.execution, "current", return_value={"status": "not_started"}),
+            patch.object(runner, "run_pipeline") as run,
+        ):
 
             self.assertEqual(runner.main(), 0)
             run.assert_called_once()
 
     def test_manual_command_runs_even_with_existing_publication(self):
-        with patch("sys.argv", ["run_pipeline", "--start-at", "bronze"]), patch.object(runner, "publication_exists", return_value=True) as check, patch.object(runner, "run_pipeline") as run:
+        with (
+            patch("sys.argv", ["run_pipeline", "--start-at", "bronze"]),
+            patch.object(runner, "publication_exists", return_value=True) as check,
+            patch.object(runner, "run_pipeline") as run,
+        ):
 
             self.assertEqual(runner.main(), 0)
             check.assert_not_called()
             run.assert_called_once_with("2025", "bronze", "load", "gold")
 
     def test_failed_initialization_is_not_retried_automatically(self):
-        with patch("sys.argv", ["run_pipeline", "--if-needed"]), patch.object(runner, "publication_exists", return_value=False), patch.object(runner.execution, "current", return_value={"status": "failed"}), patch.object(runner, "run_pipeline") as run, patch.object(runner.LOGGER, "exception"):
+        with (
+            patch("sys.argv", ["run_pipeline", "--if-needed"]),
+            patch.object(runner, "publication_exists", return_value=False),
+            patch.object(runner.execution, "current", return_value={"status": "failed"}),
+            patch.object(runner, "run_pipeline") as run,
+            patch.object(runner.LOGGER, "exception"),
+        ):
 
             self.assertEqual(runner.main(), 1)
             run.assert_not_called()

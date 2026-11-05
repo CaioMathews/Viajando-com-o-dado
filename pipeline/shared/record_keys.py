@@ -25,6 +25,7 @@ def clean(value):
         result = {}
 
         for key, item in value.items():
+
             result[key] = clean(item)
 
         return result
@@ -33,6 +34,7 @@ def clean(value):
         result = []
 
         for item in value:
+
             result.append(clean(item))
 
         return result
@@ -44,6 +46,7 @@ def record_key(node, row):
     key = {}
 
     for field in node["key_fields"]:
+
         key[field] = clean(row[field])
 
     return key

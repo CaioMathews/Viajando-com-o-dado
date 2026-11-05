@@ -10,7 +10,14 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from pipeline.bronze import bronze_storage, geocoding, ibge_municipalities, ibge_population, inmet, open_meteo
+from pipeline.bronze import (
+    bronze_storage,
+    geocoding,
+    ibge_municipalities,
+    ibge_population,
+    inmet,
+    open_meteo,
+)
 from pipeline.shared import execution
 
 
@@ -18,7 +25,8 @@ class BronzePathTests(unittest.TestCase):
     def file_contents(self, directory):
         records = []
 
-        for path in sorted(directory.rglob('*')):
+        for path in sorted(directory.rglob("*")):
+
             if path.is_file():
                 records.append((path.relative_to(directory).as_posix(), path.read_bytes()))
 
@@ -33,29 +41,41 @@ class BronzePathTests(unittest.TestCase):
             open_meteo.ingest_open_meteo,
         ]
 
-        with tempfile.TemporaryDirectory(prefix='bronze-path-tests-') as temporary:
+        with tempfile.TemporaryDirectory(prefix="bronze-path-tests-") as temporary:
 
             directory = Path(temporary)
-            project = directory / 'project'
-            source = project / 'raw'
+            project = directory / "project"
+            source = project / "raw"
             source.mkdir(parents=True)
-            (source / 'SP.json').write_bytes(b'raw JSON must remain untouched')
-            (source / 'station.CSV').write_bytes(b'raw CSV must remain untouched')
-            (source / 'population.xls').write_bytes(b'raw XLS must remain untouched')
-            (project / 'notes.txt').write_bytes(b'unrelated file must remain untouched')
+            (source / "SP.json").write_bytes(b"raw JSON must remain untouched")
+            (source / "station.CSV").write_bytes(b"raw CSV must remain untouched")
+            (source / "population.xls").write_bytes(b"raw XLS must remain untouched")
+            (project / "notes.txt").write_bytes(b"unrelated file must remain untouched")
             before = self.file_contents(project)
-            destinations = [source, source / 'bronze', project, source / '..' / 'raw']
+            destinations = [source, source / "bronze", project, source / ".." / "raw"]
 
-            for enabled in ['0', '1']:
-                with patch.dict(os.environ, {'VCD_TRACKING_ENABLED': enabled}), patch.object(execution, 'STATUS_PATH', directory / 'status.json'):
+            for enabled in ["0", "1"]:
+
+                with (
+                    patch.dict(os.environ, {"VCD_TRACKING_ENABLED": enabled}),
+                    patch.object(execution, "STATUS_PATH", directory / "status.json"),
+                ):
 
                     for function in functions:
+
                         for destination in destinations:
-                            with self.subTest(audit=enabled, source=function.__name__, destination=str(destination)):
 
-                                with patch.object(bronze_storage, 'recover_inputs') as recovery:
+                            with self.subTest(
+                                audit=enabled,
+                                source=function.__name__,
+                                destination=str(destination),
+                            ):
 
-                                    with self.assertRaisesRegex(ValueError, 'separadas, sem sobreposição'):
+                                with patch.object(bronze_storage, "recover_inputs") as recovery:
+
+                                    with self.assertRaisesRegex(
+                                        ValueError, "separadas, sem sobreposição"
+                                    ):
 
                                         with execution.run_context() as run:
 
@@ -64,22 +84,21 @@ class BronzePathTests(unittest.TestCase):
 
                                 recovery.assert_not_called()
                                 self.assertEqual(self.file_contents(project), before)
-                                self.assertFalse((source / 'bronze').exists())
+                                self.assertFalse((source / "bronze").exists())
 
-                                if enabled == '1':
-                                    self.assertEqual(run['status'], 'failed')
-
+                                if enabled == "1":
+                                    self.assertEqual(run["status"], "failed")
 
     def test_distinct_sibling_paths_are_accepted_and_recovery_is_preserved(self):
         with tempfile.TemporaryDirectory() as temporary:
 
             directory = Path(temporary)
-            source = directory / 'raw'
+            source = directory / "raw"
             source.mkdir()
-            output = directory / 'raw_bronze'
-            parameters = {'input_directory': source, 'output_directory': output}
+            output = directory / "raw_bronze"
+            parameters = {"input_directory": source, "output_directory": output}
 
-            with patch.object(bronze_storage, 'recover_inputs') as recovery:
+            with patch.object(bronze_storage, "recover_inputs") as recovery:
 
                 bronze_storage.prepare_inputs(parameters)
 
@@ -89,18 +108,20 @@ class BronzePathTests(unittest.TestCase):
     def test_invalid_paths_block_json_recovery_before_any_mutation(self):
         with tempfile.TemporaryDirectory() as temporary:
 
-            data = Path(temporary) / 'data'
-            source = data / 'open_meteo/geocoding'
+            data = Path(temporary) / "data"
+            source = data / "open_meteo/geocoding"
             source.mkdir(parents=True)
 
-            with patch.object(bronze_storage, 'recover_inputs') as recovery:
+            with patch.object(bronze_storage, "recover_inputs") as recovery:
 
-                with self.assertRaisesRegex(ValueError, 'separadas, sem sobreposição'):
+                with self.assertRaisesRegex(ValueError, "separadas, sem sobreposição"):
 
-                    bronze_storage.prepare_inputs({'input_directory': source, 'output_directory': data})
+                    bronze_storage.prepare_inputs(
+                        {"input_directory": source, "output_directory": data}
+                    )
 
             recovery.assert_not_called()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

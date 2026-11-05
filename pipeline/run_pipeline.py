@@ -72,14 +72,22 @@ def validate_inputs(project_directory: Path, year: str, selected_stages: list[st
         for path in [data / "inmet" / year, data / "inmet" / f"boundary_{year}"]:
 
             if not path.is_dir() or not any(path.glob("*.CSV")):
-                raise FileNotFoundError(f"CSVs de entrada não encontrados: {path}. A borda do INMET deve ser obtida antes da execução.")
+                raise FileNotFoundError(
+                    f"CSVs de entrada não encontrados: {path}. A borda do INMET deve ser obtida antes da execução."
+                )
 
         if "consume" not in selected_stages:
 
-            for path in [data / "ibge/municipalities", data / "open_meteo/geocoding", data / "open_meteo/weather" / year]:
+            for path in [
+                data / "ibge/municipalities",
+                data / "open_meteo/geocoding",
+                data / "open_meteo/weather" / year,
+            ]:
 
                 if not path.is_dir() or not any(path.glob("*.json")):
-                    raise FileNotFoundError(f"JSONs de entrada não encontrados: {path}. Execute primeiro a coleta.")
+                    raise FileNotFoundError(
+                        f"JSONs de entrada não encontrados: {path}. Execute primeiro a coleta."
+                    )
 
     elif "silver" in selected_stages:
         paths = layer_paths(data / "bronze", year, include_boundary=True)
@@ -91,6 +99,7 @@ def validate_inputs(project_directory: Path, year: str, selected_stages: list[st
         paths = layer_paths(data / "gold", year, include_boundary=False)
 
     for path in paths:
+
         # Recupera uma publicação anterior antes de consultar sua pasta final.
         recover_output(path)
 
@@ -119,8 +128,7 @@ def create_spark(project_directory: Path) -> SparkSession:
     os.environ["PYSPARK_PYTHON"] = sys.executable
 
     builder = (
-        SparkSession.builder
-        .appName("Viajando com o dado - Pipeline")
+        SparkSession.builder.appName("Viajando com o dado - Pipeline")
         .master("local[2]")
         .config("spark.driver.memory", "4g")
         .config("spark.sql.shuffle.partitions", "16")
@@ -132,10 +140,11 @@ def create_spark(project_directory: Path) -> SparkSession:
     if os.name == "nt":
         jar = project_directory / "pipeline/bronze/lib/hadoop-bare-naked-local-fs-0.1.0.jar"
         builder = (
-            builder
-            .config("spark.driver.extraClassPath", str(jar))
+            builder.config("spark.driver.extraClassPath", str(jar))
             .config("spark.executor.extraClassPath", str(jar))
-            .config("spark.hadoop.fs.file.impl", "com.globalmentor.apache.hadoop.fs.BareLocalFileSystem")
+            .config(
+                "spark.hadoop.fs.file.impl", "com.globalmentor.apache.hadoop.fs.BareLocalFileSystem"
+            )
         )
 
     spark = builder.getOrCreate()
@@ -150,7 +159,12 @@ def run_consume(project_directory: Path, year: str) -> None:
     script = project_directory / "pipeline/consume APIs/consume.py"
     environment = os.environ.copy()
     environment["VCD_TRACKING_ENABLED"] = "0"
-    subprocess.run([sys.executable, str(script), "--year", year], cwd=project_directory, check=True, env=environment)
+    subprocess.run(
+        [sys.executable, str(script), "--year", year],
+        cwd=project_directory,
+        check=True,
+        env=environment,
+    )
 
 
 def run_bronze(spark: SparkSession, data: Path, year: str) -> None:
@@ -164,7 +178,10 @@ def run_bronze(spark: SparkSession, data: Path, year: str) -> None:
     ]
 
     for name, function, relative in tasks:
-        execute_step("Bronze - " + name, function, spark, data / relative, data / "bronze" / relative)
+
+        execute_step(
+            "Bronze - " + name, function, spark, data / relative, data / "bronze" / relative
+        )
 
 
 def run_silver(spark: SparkSession, data: Path, year: str) -> None:
@@ -178,7 +195,14 @@ def run_silver(spark: SparkSession, data: Path, year: str) -> None:
     ]
 
     for name, function, relative in tasks:
-        execute_step("Silver - " + name, function, spark, data / "bronze" / relative, data / "silver" / relative)
+
+        execute_step(
+            "Silver - " + name,
+            function,
+            spark,
+            data / "bronze" / relative,
+            data / "silver" / relative,
+        )
 
 
 def run_gold(spark: SparkSession, data: Path, year: str) -> None:
@@ -189,37 +213,78 @@ def run_gold(spark: SparkSession, data: Path, year: str) -> None:
     start_date = date(int(year), 1, 1)
     end_date = date(int(year), 12, 31)
 
-    execute_step("Gold - municípios", gold_municipalities.build_municipalities,
-                 spark, silver / "ibge/municipalities", municipalities)
+    execute_step(
+        "Gold - municípios",
+        gold_municipalities.build_municipalities,
+        spark,
+        silver / "ibge/municipalities",
+        municipalities,
+    )
 
-    execute_step("Gold - população", gold_population.build_population,
-                 spark, silver / "ibge/population", municipalities, gold / "ibge/population")
+    execute_step(
+        "Gold - população",
+        gold_population.build_population,
+        spark,
+        silver / "ibge/population",
+        municipalities,
+        gold / "ibge/population",
+    )
 
-    execute_step("Gold - geocoding", gold_geocoding.build_geocoding,
-                 spark, silver / "open_meteo/geocoding", municipalities, coordinates)
+    execute_step(
+        "Gold - geocoding",
+        gold_geocoding.build_geocoding,
+        spark,
+        silver / "open_meteo/geocoding",
+        municipalities,
+        coordinates,
+    )
 
-    execute_step("Gold - Open-Meteo", gold_open_meteo.build_open_meteo,
-                 spark, silver / "open_meteo/weather" / year, coordinates,
-                 gold / "open_meteo/weather" / year, start_date, end_date)
+    execute_step(
+        "Gold - Open-Meteo",
+        gold_open_meteo.build_open_meteo,
+        spark,
+        silver / "open_meteo/weather" / year,
+        coordinates,
+        gold / "open_meteo/weather" / year,
+        start_date,
+        end_date,
+    )
 
-    execute_step("Gold - INMET", gold_inmet.build_inmet,
-                 spark, silver / "inmet" / year, coordinates, gold / "inmet" / year,
-                 start_date, end_date, max_distance_km=50.0, minimum_station_coverage=0.9,
-                 boundary_directory=silver / "inmet" / f"boundary_{year}")
+    execute_step(
+        "Gold - INMET",
+        gold_inmet.build_inmet,
+        spark,
+        silver / "inmet" / year,
+        coordinates,
+        gold / "inmet" / year,
+        start_date,
+        end_date,
+        max_distance_km=50.0,
+        minimum_station_coverage=0.9,
+        boundary_directory=silver / "inmet" / f"boundary_{year}",
+    )
 
 
 @execution.pipeline_execution
-def run_pipeline(year: str = "2025", start_at: str = "consume", stop_after: str = "load",
-                 schema_name: str = "gold") -> dict[str, int]:
+def run_pipeline(
+    year: str = "2025",
+    start_at: str = "consume",
+    stop_after: str = "load",
+    schema_name: str = "gold",
+) -> dict[str, int]:
     """Executa o intervalo selecionado e interrompe etapas seguintes se ocorrer uma falha."""
 
     year = str(year)
     date.fromisoformat(f"{year}-01-01")
 
-    if start_at not in STAGES or stop_after not in STAGES or STAGES.index(start_at) > STAGES.index(stop_after):
+    if (
+        start_at not in STAGES
+        or stop_after not in STAGES
+        or STAGES.index(start_at) > STAGES.index(stop_after)
+    ):
         raise ValueError("Informe um intervalo de etapas válido.")
 
-    stages = STAGES[STAGES.index(start_at):STAGES.index(stop_after) + 1]
+    stages = STAGES[STAGES.index(start_at) : STAGES.index(stop_after) + 1]
 
     validate_inputs(PROJECT_DIRECTORY, year, stages)
 
@@ -258,10 +323,17 @@ def run_pipeline(year: str = "2025", start_at: str = "consume", stop_after: str 
 
             elif stage == "load":
                 execute_step("Preparação do banco", postgres.create_database)
-                summary = execute_step("Carga PostgreSQL", postgres.load_gold,
-                                       spark, data / "gold", year=year, schema_name=schema_name)
+                summary = execute_step(
+                    "Carga PostgreSQL",
+                    postgres.load_gold,
+                    spark,
+                    data / "gold",
+                    year=year,
+                    schema_name=schema_name,
+                )
 
                 for table_name, count in summary.items():
+
                     LOGGER.info("%s.%s: %s registros processados", schema_name, table_name, count)
     except BaseException as error:
         processing_error = error
@@ -290,7 +362,6 @@ def run_pipeline(year: str = "2025", start_at: str = "consume", stop_after: str 
     return summary
 
 
-
 def publication_exists(year, schema_name):
     """Na inicialização, uma publicação existente nunca é reprocessada."""
 
@@ -298,10 +369,15 @@ def publication_exists(year, schema_name):
 
         with postgres.get_connection() as connection:
 
-            if connection.execute("SELECT to_regclass('pipeline_trace.current')").fetchone()[0] is None:
+            if (
+                connection.execute("SELECT to_regclass('pipeline_trace.current')").fetchone()[0]
+                is None
+            ):
                 return False
 
-            row = connection.execute("SELECT payload FROM pipeline_trace.current WHERE singleton=true").fetchone()
+            row = connection.execute(
+                "SELECT payload FROM pipeline_trace.current WHERE singleton=true"
+            ).fetchone()
     except psycopg.errors.InvalidCatalogName:
         return False
 
@@ -311,7 +387,9 @@ def publication_exists(year, schema_name):
         return False
 
     if published.get("schema_name") != schema_name or published.get("year") != str(year):
-        raise ValueError("Já existe uma publicação com outro ano ou schema. Reprocesse manualmente para alterar essa configuração.")
+        raise ValueError(
+            "Já existe uma publicação com outro ano ou schema. Reprocesse manualmente para alterar essa configuração."
+        )
 
     return True
 
@@ -319,11 +397,19 @@ def publication_exists(year, schema_name):
 def main() -> int:
     parser = argparse.ArgumentParser(description="Executa a pipeline Viajando com o dado.")
     parser.add_argument("--year", default="2025", help="Ano meteorológico. Padrão: 2025.")
-    parser.add_argument("--start-at", choices=STAGES, default="consume", help="Primeira etapa. Padrão: consume.")
-    parser.add_argument("--stop-after", choices=STAGES, default="load", help="Última etapa. Padrão: load.")
+    parser.add_argument(
+        "--start-at", choices=STAGES, default="consume", help="Primeira etapa. Padrão: consume."
+    )
+    parser.add_argument(
+        "--stop-after", choices=STAGES, default="load", help="Última etapa. Padrão: load."
+    )
     parser.add_argument("--schema", default="gold", help="Schema PostgreSQL. Padrão: gold.")
 
-    parser.add_argument("--if-needed", action="store_true", help="Inicializa somente se não houver publicação; reprocessamentos são manuais.")
+    parser.add_argument(
+        "--if-needed",
+        action="store_true",
+        help="Inicializa somente se não houver publicação; reprocessamentos são manuais.",
+    )
     arguments = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 
@@ -331,13 +417,21 @@ def main() -> int:
 
         postgres.validate_identifier(arguments.schema)
 
-        if arguments.if_needed and arguments.stop_after == "load" and publication_exists(arguments.year, arguments.schema):
-            LOGGER.info("Publicação existente; iniciando os serviços sem reexecutar a pipeline. Para atualizar os dados, execute o comando manual do README.")
+        if (
+            arguments.if_needed
+            and arguments.stop_after == "load"
+            and publication_exists(arguments.year, arguments.schema)
+        ):
+            LOGGER.info(
+                "Publicação existente; iniciando os serviços sem reexecutar a pipeline. Para atualizar os dados, execute o comando manual do README."
+            )
 
             return 0
 
         if arguments.if_needed and execution.current().get("status") in {"failed", "running"}:
-            raise ValueError("A inicialização anterior não concluiu. Execute a pipeline manualmente conforme o README; não haverá nova tentativa automática.")
+            raise ValueError(
+                "A inicialização anterior não concluiu. Execute a pipeline manualmente conforme o README; não haverá nova tentativa automática."
+            )
 
         run_pipeline(arguments.year, arguments.start_at, arguments.stop_after, arguments.schema)
     except Exception:

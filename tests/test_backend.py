@@ -29,7 +29,8 @@ class BackendContractTests(unittest.TestCase):
     def test_catalog_openapi_and_health_do_not_connect_to_database(self):
 
         with patch(
-            "backend.core.database.psycopg.connect", side_effect=AssertionError("Sem banco na inicialização")
+            "backend.core.database.psycopg.connect",
+            side_effect=AssertionError("Sem banco na inicialização"),
         ):
 
             self.assertEqual(self.client.get("/health").status_code, 200)
@@ -44,7 +45,8 @@ class BackendContractTests(unittest.TestCase):
     def test_unknown_dataset_is_rejected_before_connection(self):
 
         with patch(
-            "backend.core.database.psycopg.connect", side_effect=AssertionError("Sem consulta arbitrária")
+            "backend.core.database.psycopg.connect",
+            side_effect=AssertionError("Sem consulta arbitrária"),
         ):
 
             self.assertEqual(self.client.get("/datasets/unknown/records").status_code, 404)
@@ -52,7 +54,9 @@ class BackendContractTests(unittest.TestCase):
 
     def test_invalid_filters_and_pagination_are_rejected_before_connection(self):
 
-        with patch("backend.core.database.psycopg.connect", side_effect=AssertionError("Filtro inválido")):
+        with patch(
+            "backend.core.database.psycopg.connect", side_effect=AssertionError("Filtro inválido")
+        ):
 
             for query in [
                 "limit=201",
@@ -63,12 +67,17 @@ class BackendContractTests(unittest.TestCase):
                 "start_date=not-a-date",
                 "start_date=2025-02-01&end_date=2025-01-01",
             ]:
+
                 response = self.client.get("/datasets/open_meteo_daily/records?" + query)
                 self.assertEqual(response.status_code, 422, query)
 
-            self.assertEqual(self.client.get("/datasets/geocoding/records?year=2025").status_code, 422)
             self.assertEqual(
-                self.client.get("/datasets/open_meteo_daily/records?reference_date=2025-07-01").status_code,
+                self.client.get("/datasets/geocoding/records?year=2025").status_code, 422
+            )
+            self.assertEqual(
+                self.client.get(
+                    "/datasets/open_meteo_daily/records?reference_date=2025-07-01"
+                ).status_code,
                 422,
             )
 
@@ -105,14 +114,14 @@ class BackendContractTests(unittest.TestCase):
     def test_connection_failure_does_not_expose_credentials(self):
 
         with patch(
-            "backend.core.database.psycopg.connect", side_effect=psycopg.OperationalError("private-password")
+            "backend.core.database.psycopg.connect",
+            side_effect=psycopg.OperationalError("private-password"),
         ):
 
             response = self.client.get("/overview")
 
         self.assertEqual(response.status_code, 503)
         self.assertNotIn("private-password", response.text)
-
 
 
 @unittest.skipUnless(
@@ -130,6 +139,7 @@ class GoldBackendIntegrationTests(unittest.TestCase):
             connection.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(self.schema)))
 
             for table in ["municipalities", "geocoding"]:
+
                 connection.execute(
                     sql.SQL(
                         "CREATE TABLE {} (municipality_id bigint PRIMARY KEY, name text, state_code text, latitude double precision, longitude double precision)"
@@ -153,6 +163,7 @@ class GoldBackendIntegrationTests(unittest.TestCase):
             )
 
             for table in ["inmet_daily", "open_meteo_daily"]:
+
                 connection.execute(
                     sql.SQL(
                         "CREATE TABLE {} (municipality_id bigint, observation_date date, state_code text, temperature_mean_c double precision, wind_speed_max_ms double precision, quality_flags jsonb, PRIMARY KEY(municipality_id, observation_date))"
@@ -173,7 +184,9 @@ class GoldBackendIntegrationTests(unittest.TestCase):
             )
 
         repository = GoldRepository(self.schema, connection_factory=connection)
-        self.client = TestClient(create_app(Path(self.temporary.name) / "audit", gold_repository=repository))
+        self.client = TestClient(
+            create_app(Path(self.temporary.name) / "audit", gold_repository=repository)
+        )
         self.addCleanup(self.client.close)
 
     def drop_schema(self):
@@ -190,7 +203,14 @@ class GoldBackendIntegrationTests(unittest.TestCase):
         self.assertEqual(len(response.json()["datasets"]), 5)
         self.assertIn("latest_load", response.json())
 
-        for name in ["municipalities", "population", "geocoding", "inmet_daily", "open_meteo_daily"]:
+        for name in [
+            "municipalities",
+            "population",
+            "geocoding",
+            "inmet_daily",
+            "open_meteo_daily",
+        ]:
+
             response = self.client.get("/datasets/" + name + "/records")
             self.assertEqual(response.status_code, 200, response.text)
             self.assertTrue(response.json()["items"])
@@ -212,25 +232,35 @@ class GoldBackendIntegrationTests(unittest.TestCase):
         self.assertEqual(first["items"][0]["population_estimate"], 12000)
         self.assertTrue(first["has_more"])
 
-        previous = self.client.get("/datasets/population/records", params={**parameters, "offset": 1}).json()
+        previous = self.client.get(
+            "/datasets/population/records", params={**parameters, "offset": 1}
+        ).json()
         self.assertEqual(previous["items"][0]["reference_date"], "2025-07-01")
         self.assertFalse(previous["has_more"])
 
-        selected = self.client.get("/datasets/population/records", params={**parameters, "reference_date": "2025-07-01"}).json()
+        selected = self.client.get(
+            "/datasets/population/records", params={**parameters, "reference_date": "2025-07-01"}
+        ).json()
         self.assertEqual(selected["items"][0]["population_estimate"], 10000)
         self.assertFalse(selected["has_more"])
 
     def test_filters_and_page_boundaries(self):
         params = {"municipality_id": 3550308, "state_code": "SP", "year": 2025, "limit": 1}
         first = self.client.get("/datasets/open_meteo_daily/records", params=params).json()
-        second = self.client.get("/datasets/open_meteo_daily/records", params={**params, "offset": 1}).json()
+        second = self.client.get(
+            "/datasets/open_meteo_daily/records", params={**params, "offset": 1}
+        ).json()
         self.assertTrue(first["has_more"])
         self.assertFalse(second["has_more"])
         self.assertEqual(first["items"][0]["observation_date"], "2025-01-01")
         self.assertEqual(second["items"][0]["observation_date"], "2025-01-02")
         self.assertIsNone(second["items"][0]["temperature_mean_c"])
-        self.assertEqual(second["items"][0]["quality_flags"], ["invalid_numeric:temperature_mean_c"])
-        response = self.client.get("/datasets/inmet_daily/records?start_date=2025-01-02&end_date=2025-01-02")
+        self.assertEqual(
+            second["items"][0]["quality_flags"], ["invalid_numeric:temperature_mean_c"]
+        )
+        response = self.client.get(
+            "/datasets/inmet_daily/records?start_date=2025-01-02&end_date=2025-01-02"
+        )
         self.assertEqual(len(response.json()["items"]), 1)
 
     def test_batch_keys_and_numeric_filters_preserve_exact_values(self):
@@ -238,8 +268,19 @@ class GoldBackendIntegrationTests(unittest.TestCase):
         rows = repository.by_keys("municipalities", [{"municipality_id": 3550308}])
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["name"], "São Paulo")
-        self.assertFalse(repository.records("population", search_field="population_estimate", search_value="10000.1")["items"])
-        self.assertEqual(len(repository.records("population", search_field="population_estimate", search_value="10000")["items"]), 1)
+        self.assertFalse(
+            repository.records(
+                "population", search_field="population_estimate", search_value="10000.1"
+            )["items"]
+        )
+        self.assertEqual(
+            len(
+                repository.records(
+                    "population", search_field="population_estimate", search_value="10000"
+                )["items"]
+            ),
+            1,
+        )
 
     def test_metadata_returns_types_units_and_reference_years(self):
         response = self.client.get("/datasets/open_meteo_daily")
@@ -248,6 +289,7 @@ class GoldBackendIntegrationTests(unittest.TestCase):
         columns = {}
 
         for column in response.json()["columns"]:
+
             columns[column["name"]] = column
 
         self.assertEqual(columns["wind_speed_max_ms"]["unit"], "m/s")
@@ -259,7 +301,9 @@ class GoldBackendIntegrationTests(unittest.TestCase):
 
         with psycopg.connect(os.environ["TEST_POSTGRES_DSN"]) as connection:
 
-            connection.execute(sql.SQL("DROP TABLE {}").format(sql.Identifier(self.schema, "population")))
+            connection.execute(
+                sql.SQL("DROP TABLE {}").format(sql.Identifier(self.schema, "population"))
+            )
 
         response = self.client.get("/datasets/population/records")
         self.assertEqual(response.status_code, 503)

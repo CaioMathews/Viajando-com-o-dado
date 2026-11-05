@@ -9,19 +9,26 @@ from pipeline.shared.storage import write_parquet
 
 
 @execution.step("silver", "geocoding")
-def transform_geocoding(spark: SparkSession, input_directory: Path, output_directory: Path,) -> DataFrame:
+def transform_geocoding(
+    spark: SparkSession,
+    input_directory: Path,
+    output_directory: Path,
+) -> DataFrame:
     """Padroniza as coordenadas da Bronze e grava a Silver por UF."""
 
     input_directory = input_directory.resolve()
     output_directory = output_directory.resolve()
 
     # Impede que a gravação substitua a entrada ou uma pasta que a contenha.
-    if input_directory == output_directory or input_directory in output_directory.parents or output_directory in input_directory.parents:
+    if (
+        input_directory == output_directory
+        or input_directory in output_directory.parents
+        or output_directory in input_directory.parents
+    ):
         raise ValueError("As pastas de entrada e saída devem ser separadas, sem sobreposição.")
 
     coordinates = (
-        spark.read
-        .option("recursiveFileLookup", True)
+        spark.read.option("recursiveFileLookup", True)
         .option("pathGlobFilter", "*.parquet")
         .parquet(input_directory.as_posix())
     )
@@ -37,9 +44,33 @@ def transform_geocoding(spark: SparkSession, input_directory: Path, output_direc
     )
 
     state_codes = [
-        "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
-        "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
-        "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+        "AC",
+        "AL",
+        "AP",
+        "AM",
+        "BA",
+        "CE",
+        "DF",
+        "ES",
+        "GO",
+        "MA",
+        "MT",
+        "MS",
+        "MG",
+        "PA",
+        "PB",
+        "PR",
+        "PE",
+        "PI",
+        "RJ",
+        "RN",
+        "RS",
+        "RO",
+        "RR",
+        "SC",
+        "SP",
+        "SE",
+        "TO",
     ]
 
     # Os limites verificam coordenadas globais; não comprovam a localização na UF.
@@ -59,7 +90,9 @@ def transform_geocoding(spark: SparkSession, input_directory: Path, output_direc
     )
 
     if has_rows(invalid_coordinates):
-        raise ValueError("Existem IDs, nomes, UFs ou coordenadas inválidos. Revise a Bronze antes de gerar a Silver.")
+        raise ValueError(
+            "Existem IDs, nomes, UFs ou coordenadas inválidos. Revise a Bronze antes de gerar a Silver."
+        )
 
     if coordinates.limit(1).count() == 0:
         raise ValueError("A entrada não contém coordenadas para gerar a Silver.")
@@ -69,22 +102,27 @@ def transform_geocoding(spark: SparkSession, input_directory: Path, output_direc
 
     # Origens diferentes podem repetir o mesmo município sem alterar seus dados.
     municipality_values = coordinates.select(
-        "municipality_id", "name", "state_code", "latitude", "longitude",
+        "municipality_id",
+        "name",
+        "state_code",
+        "latitude",
+        "longitude",
     ).distinct()
 
-    conflicts = (
-        municipality_values
-        .groupBy("municipality_id")
-        .count()
-        .filter(F.col("count") > 1)
-    )
+    conflicts = municipality_values.groupBy("municipality_id").count().filter(F.col("count") > 1)
 
     if has_rows(conflicts):
-        raise ValueError("Existem dados conflitantes para o mesmo município. Revise a Bronze antes de gerar a Silver.")
+        raise ValueError(
+            "Existem dados conflitantes para o mesmo município. Revise a Bronze antes de gerar a Silver."
+        )
 
     # Agrupa as origens sem escolher arbitrariamente uma delas.
     coordinates = coordinates.groupBy(
-        "municipality_id", "name", "state_code", "latitude", "longitude",
+        "municipality_id",
+        "name",
+        "state_code",
+        "latitude",
+        "longitude",
     ).agg(F.sort_array(F.collect_set("source_file")).alias("source_files"))
 
     # A coluna auxiliar permite manter state_code dentro de cada Parquet.

@@ -89,6 +89,7 @@ class GoldRepository:
         items = []
 
         for name in DATASETS:
+
             items.append(self.definition(name))
 
         return {"items": items}
@@ -101,7 +102,9 @@ class GoldRepository:
     def require_table(self, connection, name):
 
         if not self.exists(connection, name):
-            raise DatasetUnavailableError("Dados ainda não publicados. Execute a carga da pipeline.")
+            raise DatasetUnavailableError(
+                "Dados ainda não publicados. Execute a carga da pipeline."
+            )
 
     def summary(self, connection, name):
         definition = self.definition(name)
@@ -147,6 +150,7 @@ class GoldRepository:
         with self.connection_factory() as connection:
 
             for name in DATASETS:
+
                 items.append(self.summary(connection, name))
 
         return {"datasets": items}
@@ -169,6 +173,7 @@ class GoldRepository:
             columns = []
 
             for column, data_type, nullable, primary_key in rows:
+
                 unit = UNITS.get(column)
 
                 if column.endswith("_hours"):
@@ -201,6 +206,7 @@ class GoldRepository:
                 ).fetchall()
 
                 for row in rows:
+
                     years.append(row[0])
 
         return {**result, "columns": columns, "years": years}
@@ -211,11 +217,19 @@ class GoldRepository:
         names = []
 
         for field in definition["keys"]:
+
             kind = "bigint" if field == "municipality_id" else "date"
             fields.append(sql.SQL("{} " + kind).format(sql.Identifier(field)))
             names.append(sql.Identifier(field))
 
-        query = sql.SQL("SELECT t.* FROM {} t JOIN jsonb_to_recordset(%s) AS wanted ({}) USING ({}) ORDER BY {}").format(sql.Identifier(self.schema, name), sql.SQL(", ").join(fields), sql.SQL(", ").join(names), sql.SQL(", ").join(names))
+        query = sql.SQL(
+            "SELECT t.* FROM {} t JOIN jsonb_to_recordset(%s) AS wanted ({}) USING ({}) ORDER BY {}"
+        ).format(
+            sql.Identifier(self.schema, name),
+            sql.SQL(", ").join(fields),
+            sql.SQL(", ").join(names),
+            sql.SQL(", ").join(names),
+        )
 
         with self.connection_factory() as connection:
 
@@ -255,6 +269,7 @@ class GoldRepository:
         has_date_filter = False
 
         for value in [year, start_date, end_date, reference_date]:
+
             if value is not None:
                 has_date_filter = True
 
@@ -268,6 +283,7 @@ class GoldRepository:
         parameters = []
 
         for column, value in [("municipality_id", municipality_id), ("state_code", state_code)]:
+
             if value is not None:
                 conditions.append(sql.SQL("{} = %s").format(sql.Identifier(column)))
                 parameters.append(value)
@@ -280,8 +296,11 @@ class GoldRepository:
             parameters.extend([date(year, 1, 1), date(year, 12, 31)])
 
         for operator, value in [(">=", start_date), ("<=", end_date), ("=", reference_date)]:
+
             if value is not None:
-                conditions.append(sql.SQL("{} " + operator + " %s").format(sql.Identifier(date_column)))
+                conditions.append(
+                    sql.SQL("{} " + operator + " %s").format(sql.Identifier(date_column))
+                )
                 parameters.append(value)
 
         if search_field or search_text:
@@ -289,6 +308,7 @@ class GoldRepository:
             names = []
 
             for column in available:
+
                 names.append(column["name"])
 
             if search_field:
@@ -298,6 +318,7 @@ class GoldRepository:
                 kind = None
 
                 for column in available:
+
                     if column["name"] == search_field:
                         kind = column["type"]
 
@@ -314,10 +335,22 @@ class GoldRepository:
                     conditions.append(sql.SQL("{} = %s").format(sql.Identifier(search_field)))
                     parameters.append(value)
                 else:
-                    conditions.append(sql.SQL("translate(lower({}::text), 'áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') LIKE %s").format(sql.Identifier(search_field)))
-                    parameters.append("%" + search_value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")
+                    conditions.append(
+                        sql.SQL(
+                            "translate(lower({}::text), 'áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') LIKE %s"
+                        ).format(sql.Identifier(search_field))
+                    )
+                    parameters.append(
+                        "%"
+                        + search_value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+                        + "%"
+                    )
             else:
-                conditions.append(sql.SQL("translate(lower(to_jsonb(t)::text), 'áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') LIKE %s"))
+                conditions.append(
+                    sql.SQL(
+                        "translate(lower(to_jsonb(t)::text), 'áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') LIKE %s"
+                    )
+                )
                 parameters.append("%" + search_text.replace("%", "\\%").replace("_", "\\_") + "%")
 
         query = sql.SQL("SELECT * FROM {} t").format(sql.Identifier(self.schema, name))
@@ -328,6 +361,7 @@ class GoldRepository:
         order = []
 
         for key in definition["keys"]:
+
             column = sql.Identifier(key)
 
             # O mapa pede uma linha da capital: prioriza a estimativa mais

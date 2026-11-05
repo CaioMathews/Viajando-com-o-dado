@@ -13,6 +13,7 @@ from pipeline.shared.storage import output_lock, remove_work_directory
 
 # Caminhos e arquivos auxiliares da publicação por UF.
 
+
 def collection_paths(data_directory: Path, state_code: str, year: str):
     """Deriva os destinos; o diário não pode indicar arquivos arbitrários."""
 
@@ -55,6 +56,7 @@ def write_staged_json(path: Path, data):
 
 # Recuperação do par de JSONs antes de uma nova leitura ou publicação.
 
+
 def recover_collection(data_directory: Path, state_code: str):
     """Recupera uma UF com sua trava adquirida; repetir a recuperação é seguro."""
 
@@ -91,6 +93,7 @@ def recover_collection(data_directory: Path, state_code: str):
 
         # Confere tudo antes de restaurar qualquer arquivo; não descarta versões desconhecidas.
         for index, target in enumerate(targets):
+
             entry = entries[index]
             before = entry.get("before_sha256")
             after = entry.get("after_sha256")
@@ -102,11 +105,15 @@ def recover_collection(data_directory: Path, state_code: str):
 
             current = files.digest_file(target) if target.is_file() else None
             expected = (
-                [after] if phase == "published" else [before] if phase == "rolled_back" else [before, after]
+                [after]
+                if phase == "published"
+                else [before] if phase == "rolled_back" else [before, after]
             )
 
             if current not in expected:
-                raise RuntimeError("Um destino da coleta mudou fora da operação; recuperação interrompida.")
+                raise RuntimeError(
+                    "Um destino da coleta mudou fora da operação; recuperação interrompida."
+                )
 
             if phase == "prepared" and before is not None:
                 backup = work / (str(index) + ".backup.json")
@@ -117,6 +124,7 @@ def recover_collection(data_directory: Path, state_code: str):
         if phase == "prepared":
 
             for index, target in enumerate(targets):
+
                 before = entries[index]["before_sha256"]
 
                 if before is None:
@@ -143,6 +151,7 @@ def recover_collections(data_directory: Path):
         return
 
     for journal in sorted(root.glob("*.transaction.json")):
+
         state_code = journal.name.removesuffix(".transaction.json")
 
         if re.fullmatch(r"[A-Z]{2}", state_code) is None:
@@ -154,6 +163,7 @@ def recover_collections(data_directory: Path):
 
 
 # Preparação, publicação e confirmação conjunta de coordenadas e clima.
+
 
 def save_collection(coordinates, weather, data_directory: Path, state_code: str, year: str):
     """Prepara ambos os JSONs e só confirma o par depois de publicar os dois."""
@@ -183,6 +193,7 @@ def save_collection(coordinates, weather, data_directory: Path, state_code: str,
             work.mkdir()
 
             for index, data in enumerate([coordinates, weather]):
+
                 target = targets[index]
                 staged = work / (str(index) + ".new.json")
                 write_staged_json(staged, data)
@@ -205,6 +216,7 @@ def save_collection(coordinates, weather, data_directory: Path, state_code: str,
             files.save_json(journal, transaction)
 
             for index, target in enumerate(targets):
+
                 files.replace_file(work / (str(index) + ".new.json"), target)
 
             transaction["phase"] = "published"

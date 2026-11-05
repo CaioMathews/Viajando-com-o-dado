@@ -1,13 +1,16 @@
 <!doctype html>
 <html lang="pt-BR" data-theme="dark">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Explore as capitais brasileiras e acompanhe a origem e as transformações dos dados.">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Explore as capitais brasileiras e acompanhe a origem e as transformações dos dados."
+    />
     <title>Viajando com o Dado</title>
-    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="./styles.css?v=20261105-details-4">
-    <script type="module" src="./src/app.js?v=20261105-details-4"></script>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css?v=20261105-calendar-2" />
+    <script type="module" src="./src/app.js?v=20261105-calendar-2"></script>
   </head>
   <body>
     <header class="topbar">
@@ -17,12 +20,26 @@
       </nav>
       <form id="search-form" class="search" role="search" hidden>
         <span aria-hidden="true">⌕</span>
-        <input id="search-input" aria-label="Buscar dados" placeholder="Município, estação, código IBGE ou coluna=valor" autocomplete="off">
+        <input
+          id="search-input"
+          aria-label="Buscar dados"
+          placeholder="Município, estação, código IBGE ou coluna=valor"
+          autocomplete="off"
+        />
         <button type="submit" aria-label="Pesquisar">↵</button>
       </form>
       <div class="header-actions">
-        <button id="connection-button" class="connection" aria-label="Configurar API" title="Configurar conexão com a API"><i></i><span>API</span></button>
-        <button id="theme-button" class="theme-button" aria-label="Alternar tema"><span aria-hidden="true">☼</span><span id="theme-label">Escuro</span></button>
+        <button
+          id="connection-button"
+          class="connection"
+          aria-label="Configurar API"
+          title="Configurar conexão com a API"
+        >
+          <i></i><span>API</span>
+        </button>
+        <button id="theme-button" class="theme-button" aria-label="Alternar tema">
+          <span aria-hidden="true">☼</span><span id="theme-label">Escuro</span>
+        </button>
       </div>
     </header>
 
@@ -30,7 +47,9 @@
       <div class="page-heading" hidden>
         <div>
           <h1 id="page-title">Mapa do Brasil</h1>
-          <p id="page-description">Explore a origem, as transformações e os destinos de cada registro.</p>
+          <p id="page-description">
+            Explore a origem, as transformações e os destinos de cada registro.
+          </p>
         </div>
         <button id="refresh-button" class="button subtle">↻ Atualizar</button>
       </div>
@@ -39,7 +58,12 @@
       <section id="pipeline-page" aria-labelledby="page-title" hidden>
         <div class="workspace" id="pipeline-workspace">
           <div class="graph-frame">
-            <div id="graph-viewport" class="graph-viewport" tabindex="0" aria-label="Fluxo da pipeline. Arraste para mover; use a roda do mouse ou os botões para ampliar.">
+            <div
+              id="graph-viewport"
+              class="graph-viewport"
+              tabindex="0"
+              aria-label="Fluxo da pipeline. Arraste para mover; use a roda do mouse ou os botões para ampliar."
+            >
               <div id="graph" class="graph"></div>
             </div>
             <div class="canvas-controls" aria-label="Controles da pipeline">
@@ -49,7 +73,12 @@
               <button id="fit-graph">⛶ Enquadrar</button>
             </div>
           </div>
-          <aside id="details-panel" class="side-panel" aria-label="Detalhes da seleção" hidden></aside>
+          <aside
+            id="details-panel"
+            class="side-panel"
+            aria-label="Detalhes da seleção"
+            hidden
+          ></aside>
         </div>
       </section>
 
@@ -64,10 +93,19 @@
                 <button id="fit-map" aria-label="Ver todo o Brasil">⛶ Enquadrar</button>
               </div>
             </div>
-            <svg id="brazil-map" viewBox="0 0 800 780" aria-label="Mapa interativo dos estados e capitais brasileiras" role="group"></svg>
+            <svg
+              id="brazil-map"
+              viewBox="0 0 800 780"
+              aria-label="Mapa interativo dos estados e capitais brasileiras"
+              role="group"
+            ></svg>
             <div id="map-message" class="map-message" role="status"></div>
           </div>
-          <aside id="capital-panel" class="side-panel capital-panel" aria-label="Dados da capital"></aside>
+          <aside
+            id="capital-panel"
+            class="side-panel capital-panel"
+            aria-label="Dados da capital"
+          ></aside>
         </div>
       </section>
     </main>
@@ -77,9 +115,12 @@
         <h2>Conexão com o backend</h2>
         <p>Informe o endereço da API local do projeto.</p>
         <label for="api-url">Endereço da API</label>
-        <input type="url" id="api-url" required placeholder="http://127.0.0.1:8000">
+        <input type="url" id="api-url" required placeholder="http://127.0.0.1:8000" />
         <p id="connection-error" class="error-text" role="alert"></p>
-        <div class="dialog-actions"><button type="button" id="cancel-connection" class="button">Cancelar</button><button class="button primary" type="submit">Salvar e conectar</button></div>
+        <div class="dialog-actions">
+          <button type="button" id="cancel-connection" class="button">Cancelar</button
+          ><button class="button primary" type="submit">Salvar e conectar</button>
+        </div>
       </form>
     </dialog>
     <noscript>Ative o JavaScript para explorar os dados e consultar a API.</noscript>

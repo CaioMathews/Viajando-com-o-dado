@@ -22,9 +22,14 @@ def graph(request: Request):
     edges = []
 
     for node in nodes:
+
         status_id = "load:postgres" if node["layer"] == "load" else node["id"]
 
-        if node["layer"] == "source" and node["dataset"] in {"municipalities", "geocoding", "open_meteo_daily"}:
+        if node["layer"] == "source" and node["dataset"] in {
+            "municipalities",
+            "geocoding",
+            "open_meteo_daily",
+        }:
             status_id = "consume:consume"
 
         step = state["nodes"].get(status_id)
@@ -40,14 +45,33 @@ def graph(request: Request):
         except FileNotFoundError:
             node["available"] = False
 
-        node["status"] = step["status"] if step else "waiting" if state["status"] == "running" and node["layer"] != "source" else "available" if node["available"] else "not_started"
+        node["status"] = (
+            step["status"]
+            if step
+            else (
+                "waiting"
+                if state["status"] == "running" and node["layer"] != "source"
+                else "available" if node["available"] else "not_started"
+            )
+        )
         node["records"] = step.get("records") if step else None
 
         if node["layer"] == "load" and step and step["status"] == "succeeded":
             node["records"] = request.app.state.gold_repository.metadata(node["dataset"])["records"]
 
         for parent in node["parents"]:
-            edges.append({"source": parent, "target": node["id"], "kind": "aggregation" if node["id"] == "gold:inmet_daily" else "join" if len(node["parents"]) > 1 else "transform"})
+
+            edges.append(
+                {
+                    "source": parent,
+                    "target": node["id"],
+                    "kind": (
+                        "aggregation"
+                        if node["id"] == "gold:inmet_daily"
+                        else "join" if len(node["parents"]) > 1 else "transform"
+                    ),
+                }
+            )
 
     return {"execution": state, "nodes": nodes, "edges": edges}
 
@@ -63,9 +87,19 @@ def metadata(node_id: str, request: Request):
 
 
 @router.get("/nodes/{node_id}/records")
-def records(node_id: str, request: Request, q: Annotated[str, Query(max_length=500)] = "", limit: Annotated[int, Query(ge=1, le=100)] = 10, offset: Annotated[int, Query(ge=0)] = 0):
+def records(
+    node_id: str,
+    request: Request,
+    q: Annotated[str, Query(max_length=500)] = "",
+    limit: Annotated[int, Query(ge=1, le=100)] = 10,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
     reader = request.app.state.current_data
-    parsed = request.app.state.discovery.parse(q) if q else {"filters": {}, "suggestions": [], "message": ""}
+    parsed = (
+        request.app.state.discovery.parse(q)
+        if q
+        else {"filters": {}, "suggestions": [], "message": ""}
+    )
 
     if parsed["suggestions"]:
         return {**parsed, "items": [], "has_more": False, "next_offset": None}
@@ -94,7 +128,10 @@ def source_file(request: Request, path: Annotated[str, Query(max_length=1000)]):
     allowed = False
 
     for node in catalog(reader.year):
-        if node["layer"] == "source" and requested.is_relative_to((reader.directory / node["path"]).resolve()):
+
+        if node["layer"] == "source" and requested.is_relative_to(
+            (reader.directory / node["path"]).resolve()
+        ):
             allowed = requested.suffix.lower() in {".json", ".csv", ".xls", ".xlsx"}
 
     if not allowed:
@@ -104,7 +141,13 @@ def source_file(request: Request, path: Annotated[str, Query(max_length=1000)]):
 
 
 @router.get("/search")
-def search(request: Request, q: Annotated[str, Query(min_length=1, max_length=500)], limit: Annotated[int, Query(ge=1, le=50)] = 20, dataset_index: Annotated[int, Query(ge=0, le=5)] = 0, offset: Annotated[int, Query(ge=0, le=1000000)] = 0):
+def search(
+    request: Request,
+    q: Annotated[str, Query(min_length=1, max_length=500)],
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    dataset_index: Annotated[int, Query(ge=0, le=5)] = 0,
+    offset: Annotated[int, Query(ge=0, le=1000000)] = 0,
+):
     reader = request.app.state.current_data
     reader.year = execution.current(reader.directory / "pipeline_status.json").get("year", "2025")
 
@@ -121,6 +164,7 @@ def journey(request: Request, node_id: str, key: Annotated[str, Query(max_length
         raise ValueError("Informe uma chave de registro válida.")
 
     for value in parsed.values():
+
         if not isinstance(value, (str, int, float)) or isinstance(value, bool):
             raise ValueError("Valores inválidos na chave.")
 

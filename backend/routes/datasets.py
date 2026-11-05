@@ -32,7 +32,6 @@ def overview(request: Request, store: Gold):
     return {**summary, "latest_load": current}
 
 
-
 @router.get("/datasets/{dataset}")
 def metadata(dataset: str, store: Gold):
     return store.metadata(dataset)

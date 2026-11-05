@@ -60,7 +60,14 @@ def run_context(project_directory=None, parameters=None):
 
         return
 
-    state = {"run_id": uuid4().hex, "status": "running", "year": str((parameters or {}).get("year", "2025")), "started_at": now(), "finished_at": None, "nodes": {}}
+    state = {
+        "run_id": uuid4().hex,
+        "status": "running",
+        "year": str((parameters or {}).get("year", "2025")),
+        "started_at": now(),
+        "finished_at": None,
+        "nodes": {},
+    }
     token = _RUN.set(state)
 
     try:
@@ -98,7 +105,15 @@ def pipeline_execution(function):
 
 
 def step(layer, source, before_inputs=None):
-    datasets = {"ibge_municipalities": "municipalities", "ibge_population": "population", "geocoding": "geocoding", "open_meteo": "open_meteo_daily", "inmet": "inmet_daily", "postgres": "postgres", "consume": "consume"}
+    datasets = {
+        "ibge_municipalities": "municipalities",
+        "ibge_population": "population",
+        "geocoding": "geocoding",
+        "open_meteo": "open_meteo_daily",
+        "inmet": "inmet_daily",
+        "postgres": "postgres",
+        "consume": "consume",
+    }
 
     def decorate(function):
         @wraps(function)
@@ -122,7 +137,15 @@ def step(layer, source, before_inputs=None):
                     dataset = "inmet_boundary"
 
                 node_id = layer + ":" + dataset
-                item = {"status": "running", "started_at": now(), "function": function.__name__, "file": str(Path(inspect.getsourcefile(function)).relative_to(PROJECT_DIRECTORY)), "records": None}
+                item = {
+                    "status": "running",
+                    "started_at": now(),
+                    "function": function.__name__,
+                    "file": str(
+                        Path(inspect.getsourcefile(function)).relative_to(PROJECT_DIRECTORY)
+                    ),
+                    "records": None,
+                }
                 state["nodes"][node_id] = item
                 token = _STEP.set(item)
 
@@ -150,7 +173,9 @@ def step(layer, source, before_inputs=None):
 
                         raise
                     finally:
-                        item.update(finished_at=now(), duration_seconds=round(perf_counter() - started, 3))
+                        item.update(
+                            finished_at=now(), duration_seconds=round(perf_counter() - started, 3)
+                        )
                         save_json(STATUS_PATH, state)
                 finally:
                     _STEP.reset(token)
@@ -165,7 +190,11 @@ def set_output(path, records):
 
     if item is not None:
         selected = Path(path).resolve()
-        relative = selected.relative_to(PROJECT_DIRECTORY) if selected.is_relative_to(PROJECT_DIRECTORY) else selected
+        relative = (
+            selected.relative_to(PROJECT_DIRECTORY)
+            if selected.is_relative_to(PROJECT_DIRECTORY)
+            else selected
+        )
         item.update(path=str(relative), records=records)
 
 

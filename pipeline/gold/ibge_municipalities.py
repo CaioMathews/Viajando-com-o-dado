@@ -9,18 +9,25 @@ from pipeline.shared.storage import write_parquet
 
 
 @execution.step("gold", "ibge_municipalities")
-def build_municipalities(spark: SparkSession, input_directory: Path, output_directory: Path,) -> DataFrame:
+def build_municipalities(
+    spark: SparkSession,
+    input_directory: Path,
+    output_directory: Path,
+) -> DataFrame:
     """Prepara o cadastro das 27 capitais para integrar as tabelas analíticas da Gold."""
 
     input_directory = input_directory.resolve()
     output_directory = output_directory.resolve()
 
-    if input_directory == output_directory or input_directory in output_directory.parents or output_directory in input_directory.parents:
+    if (
+        input_directory == output_directory
+        or input_directory in output_directory.parents
+        or output_directory in input_directory.parents
+    ):
         raise ValueError("As pastas de entrada e saída devem ser separadas, sem sobreposição.")
 
     municipalities = (
-        spark.read
-        .option("recursiveFileLookup", True)
+        spark.read.option("recursiveFileLookup", True)
         .option("pathGlobFilter", "*.parquet")
         .parquet(input_directory.as_posix())
     )
@@ -61,11 +68,15 @@ def build_municipalities(spark: SparkSession, input_directory: Path, output_dire
         "expected_state_code string, municipality_id long, expected_name string",
     )
 
-    selected = municipalities.join(capital_reference.select("municipality_id"), "municipality_id", "inner")
+    selected = municipalities.join(
+        capital_reference.select("municipality_id"), "municipality_id", "inner"
+    )
     repeated_ids = selected.groupBy("municipality_id").count().filter(F.col("count") > 1)
 
     if has_rows(repeated_ids):
-        raise ValueError("Existem capitais repetidas na Silver. Revise a origem antes de gerar a Gold.")
+        raise ValueError(
+            "Existem capitais repetidas na Silver. Revise a origem antes de gerar a Gold."
+        )
 
     # A referência à esquerda permite identificar inclusive capitais completamente ausentes.
     capitals = capital_reference.join(selected, "municipality_id", "left")
@@ -73,28 +84,53 @@ def build_municipalities(spark: SparkSession, input_directory: Path, output_dire
     invalid = (
         ~F.col("state_code").eqNullSafe(F.col("expected_state_code"))
         | ~F.col("name").eqNullSafe(F.col("expected_name"))
-        | ~F.substring(F.col("municipality_id").cast("string"), 1, 2).eqNullSafe(F.col("state_id").cast("string"))
+        | ~F.substring(F.col("municipality_id").cast("string"), 1, 2).eqNullSafe(
+            F.col("state_id").cast("string")
+        )
         | F.col("region_id").isNull()
         | ~F.col("region_id").eqNullSafe(F.floor(F.col("state_id") / 10))
     )
 
-    for column_name in ["state_name", "region_code", "region_name", "immediate_region_name", "intermediate_region_name"]:
+    for column_name in [
+        "state_name",
+        "region_code",
+        "region_name",
+        "immediate_region_name",
+        "intermediate_region_name",
+    ]:
+
         invalid = invalid | F.col(column_name).isNull() | (F.trim(F.col(column_name)) == "")
 
     for column_name in ["immediate_region_id", "intermediate_region_id"]:
+
         invalid = invalid | F.col(column_name).isNull() | (F.col(column_name) <= 0)
 
     invalid = invalid | F.col("source_files").isNull() | (F.size("source_files") == 0)
 
     if has_rows(capitals.filter(invalid)):
-        raise ValueError("Existem capitais ausentes ou campos divergentes no cadastro. Revise a Silver antes de gerar a Gold.")
+        raise ValueError(
+            "Existem capitais ausentes ou campos divergentes no cadastro. Revise a Silver antes de gerar a Gold."
+        )
 
     # Mantém as duas divisões regionais e as origens, com uma única linha por capital.
     capitals = capitals.select(
-        "municipality_id", "name", "state_code", "state_id", "state_name",
-        "region_id", "region_code", "region_name",
-        "immediate_region_id", "immediate_region_name", "intermediate_region_id", "intermediate_region_name",
-        "microregion_id", "microregion_name", "mesoregion_id", "mesoregion_name", "source_files",
+        "municipality_id",
+        "name",
+        "state_code",
+        "state_id",
+        "state_name",
+        "region_id",
+        "region_code",
+        "region_name",
+        "immediate_region_id",
+        "immediate_region_name",
+        "intermediate_region_id",
+        "intermediate_region_name",
+        "microregion_id",
+        "microregion_name",
+        "mesoregion_id",
+        "mesoregion_name",
+        "source_files",
     ).withColumn("is_capital", F.lit(True))
 
     # Preserva a UF como coluna e usa uma coluna auxiliar para criar as pastas.

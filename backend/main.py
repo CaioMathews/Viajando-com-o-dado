@@ -37,13 +37,19 @@ def create_app(
 
     try:
 
-        year = execution.current(settings.data_directory / "pipeline_status.json").get("year", "2025")
+        year = execution.current(settings.data_directory / "pipeline_status.json").get(
+            "year", "2025"
+        )
     except (json.JSONDecodeError, OSError):
         year = "2025"
 
-    application.state.current_data = CurrentData(settings.data_directory, year, application.state.gold_repository)
+    application.state.current_data = CurrentData(
+        settings.data_directory, year, application.state.gold_repository
+    )
     application.state.trace_store = TraceStore(schema_name=settings.gold_schema)
-    application.state.trace_service = TraceService(application.state.current_data, application.state.trace_store)
+    application.state.trace_service = TraceService(
+        application.state.current_data, application.state.trace_store
+    )
     application.state.journey_service = JourneyService(application.state.trace_service)
     application.state.discovery = DiscoveryService(application.state.current_data)
     application.add_middleware(

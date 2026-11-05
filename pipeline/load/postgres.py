@@ -56,7 +56,9 @@ def load_environment() -> None:
     load_dotenv(environment_path, override=False, interpolate=False)
 
 
-def get_connection(database_name: str | None = None, autocommit: bool = False) -> psycopg.Connection:
+def get_connection(
+    database_name: str | None = None, autocommit: bool = False
+) -> psycopg.Connection:
     """Abre a conexão com configurações do ambiente, sem exibir a senha."""
 
     load_environment()
@@ -96,7 +98,9 @@ def create_database() -> bool:
 
         with connection.cursor() as cursor:
 
-            cursor.execute("SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = %s)", (database_name,))
+            cursor.execute(
+                "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = %s)", (database_name,)
+            )
 
             if cursor.fetchone()[0]:
                 return False
@@ -121,6 +125,7 @@ def get_column_types(dataframe: DataFrame) -> dict[str, str]:
     columns = {}
 
     for field in dataframe.schema.fields:
+
         validate_identifier(field.name)
         data_type = field.dataType
 
@@ -178,6 +183,7 @@ def validate_dataframe(dataframe: DataFrame, table_name: str) -> int:
     invalid_key = F.lit(False)
 
     for name in TABLE_KEYS[table_name]:
+
         invalid_key = invalid_key | F.col(name).isNull()
 
     if dataframe.filter(invalid_key).limit(1).count() > 0:
@@ -202,11 +208,13 @@ def prepare_table(cursor, schema_name: str, table_name: str, columns: dict[str, 
     definitions = []
 
     for name, postgres_type in columns.items():
+
         definitions.append(sql.SQL("{} {}").format(sql.Identifier(name), sql.SQL(postgres_type)))
 
     keys = []
 
     for name in TABLE_KEYS[table_name]:
+
         keys.append(sql.Identifier(name))
 
     definitions.append(sql.SQL("PRIMARY KEY ({})").format(sql.SQL(", ").join(keys)))
@@ -264,6 +272,7 @@ def load_table(
     selected_columns = []
 
     for name, postgres_type in columns.items():
+
         column = F.col(name)
 
         if postgres_type == "jsonb":
@@ -278,33 +287,43 @@ def load_table(
         table = sql.Identifier(schema_name, table_name)
         staging = sql.Identifier("load_" + uuid4().hex)
 
-        cursor.execute(sql.SQL("CREATE TEMP TABLE {} (LIKE {}) ON COMMIT DROP").format(staging, table))
+        cursor.execute(
+            sql.SQL("CREATE TEMP TABLE {} (LIKE {}) ON COMMIT DROP").format(staging, table)
+        )
         names = []
         updates = []
         keys = []
 
         for name in columns:
+
             names.append(sql.Identifier(name))
 
             if name not in TABLE_KEYS[table_name]:
-                updates.append(sql.SQL("{} = EXCLUDED.{}").format(sql.Identifier(name), sql.Identifier(name)))
+                updates.append(
+                    sql.SQL("{} = EXCLUDED.{}").format(sql.Identifier(name), sql.Identifier(name))
+                )
 
         for name in TABLE_KEYS[table_name]:
+
             keys.append(sql.Identifier(name))
 
         record_count = 0
         copy_names = list(names)
         input_frame = dataframe
 
-        copy_query = sql.SQL("COPY {} ({}) FROM STDIN").format(staging, sql.SQL(", ").join(copy_names))
+        copy_query = sql.SQL("COPY {} ({}) FROM STDIN").format(
+            staging, sql.SQL(", ").join(copy_names)
+        )
 
         # Itera por partição; não coleta toda a Gold na memória do Python.
         with cursor.copy(copy_query) as copy:
 
             for row in input_frame.select(*selected_columns).toLocalIterator():
+
                 values = []
 
                 for name, postgres_type in columns.items():
+
                     value = row[name]
 
                     if value is not None and postgres_type == "jsonb":
@@ -344,7 +363,9 @@ def load_table(
     return record_count
 
 
-def read_gold_tables(spark: SparkSession, gold_directory: Path, year: str = "2025") -> dict[str, DataFrame]:
+def read_gold_tables(
+    spark: SparkSession, gold_directory: Path, year: str = "2025"
+) -> dict[str, DataFrame]:
     """Localiza as cinco saídas, sem modificar os arquivos da Gold."""
 
     year = str(year)
@@ -370,6 +391,7 @@ def read_gold_tables(spark: SparkSession, gold_directory: Path, year: str = "202
     tables = {}
 
     for name, path in paths.items():
+
         tables[name] = (
             spark.read.option("recursiveFileLookup", True)
             .option("pathGlobFilter", "*.parquet")
@@ -393,32 +415,46 @@ def load_gold(
     before = {}
 
     for node in lineage.catalog(year):
+
         if node["layer"] in {"bronze", "silver", "gold"}:
             before[node["id"]] = lineage.fingerprint(data_directory / node["path"])
         elif node["layer"] == "source":
-            before[node["id"]] = lineage.fingerprint(data_directory / node["path"], {".csv", ".json", ".xls", ".xlsx"})
+            before[node["id"]] = lineage.fingerprint(
+                data_directory / node["path"], {".csv", ".json", ".xls", ".xlsx"}
+            )
 
     with get_connection() as connection:
 
         with connection.cursor() as cursor:
 
             cursor.execute("SET LOCAL lock_timeout = '10s'")
-            cursor.execute("SELECT pg_try_advisory_xact_lock(hashtextextended(current_database() || ':' || %s, 0))", (schema_name,))
+            cursor.execute(
+                "SELECT pg_try_advisory_xact_lock(hashtextextended(current_database() || ':' || %s, 0))",
+                (schema_name,),
+            )
 
             if not cursor.fetchone()[0]:
                 raise RuntimeError("Outra carga está usando este schema do PostgreSQL.")
 
-            cursor.execute(sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(schema_name)))
+            cursor.execute(
+                sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(schema_name))
+            )
 
         for table_name, dataframe in tables.items():
+
             summary[table_name] = load_table(connection, dataframe, table_name, schema_name)
 
         lineage.publish(connection, data_directory, year, schema_name)
 
         for node in lineage.catalog(year):
+
             suffixes = {".csv", ".json", ".xls", ".xlsx"} if node["layer"] == "source" else None
 
-            if node["id"] in before and before[node["id"]] != lineage.fingerprint(data_directory / node["path"], suffixes):
-                raise RuntimeError("Os dados mudaram durante a publicação. A transação será desfeita.")
+            if node["id"] in before and before[node["id"]] != lineage.fingerprint(
+                data_directory / node["path"], suffixes
+            ):
+                raise RuntimeError(
+                    "Os dados mudaram durante a publicação. A transação será desfeita."
+                )
 
     return summary

@@ -5,15 +5,33 @@ from pipeline.shared.http import get_json
 
 # O retorno da API identifica o estado pelo nome completo, no campo admin1.
 STATE_NAMES = {
-    "AC": "Acre", "AL": "Alagoas", "AM": "Amazonas",
-    "AP": "Amapá", "BA": "Bahia", "CE": "Ceará",
-    "DF": "Distrito Federal", "ES": "Espírito Santo", "GO": "Goiás",
-    "MA": "Maranhão", "MG": "Minas Gerais", "MS": "Mato Grosso do Sul",
-    "MT": "Mato Grosso", "PA": "Pará", "PB": "Paraíba",
-    "PE": "Pernambuco", "PI": "Piauí", "PR": "Paraná",
-    "RJ": "Rio de Janeiro", "RN": "Rio Grande do Norte", "RO": "Rondônia",
-    "RR": "Roraima", "RS": "Rio Grande do Sul", "SC": "Santa Catarina",
-    "SE": "Sergipe", "SP": "São Paulo", "TO": "Tocantins",
+    "AC": "Acre",
+    "AL": "Alagoas",
+    "AM": "Amazonas",
+    "AP": "Amapá",
+    "BA": "Bahia",
+    "CE": "Ceará",
+    "DF": "Distrito Federal",
+    "ES": "Espírito Santo",
+    "GO": "Goiás",
+    "MA": "Maranhão",
+    "MG": "Minas Gerais",
+    "MS": "Mato Grosso do Sul",
+    "MT": "Mato Grosso",
+    "PA": "Pará",
+    "PB": "Paraíba",
+    "PE": "Pernambuco",
+    "PI": "Piauí",
+    "PR": "Paraná",
+    "RJ": "Rio de Janeiro",
+    "RN": "Rio Grande do Norte",
+    "RO": "Rondônia",
+    "RR": "Roraima",
+    "RS": "Rio Grande do Sul",
+    "SC": "Santa Catarina",
+    "SE": "Sergipe",
+    "SP": "São Paulo",
+    "TO": "Tocantins",
 }
 
 
@@ -24,10 +42,12 @@ def normalize_name(name: str) -> str:
     characters = []
 
     for character in normalized_name:
+
         if not unicodedata.combining(character):
             characters.append(character)
 
     return "".join(characters)
+
 
 def get_coordinates(city_name: str) -> tuple[float, float]:
     """Consulta uma cidade brasileira, com UF opcional, e retorna suas coordenadas."""
@@ -60,6 +80,7 @@ def get_coordinates(city_name: str) -> tuple[float, float]:
     candidates = []
 
     for location in locations:
+
         if location.get("country_code") != "BR":
             continue
 
@@ -86,10 +107,7 @@ def get_coordinates(city_name: str) -> tuple[float, float]:
 
     if capitals:
 
-
         candidates = capitals
-
-
 
     if not candidates:
         raise ValueError(f"Nenhuma cidade correspondente encontrada para: {city_name}.")

@@ -10,6 +10,7 @@ def normalize(value):
     characters = []
 
     for character in unicodedata.normalize("NFKD", str(value).casefold().strip()):
+
         if not unicodedata.combining(character):
             characters.append(character)
 
@@ -25,9 +26,11 @@ def suggestions(query, capitals, limit=5):
     matches = []
 
     for capital in capitals:
+
         score = 0
 
         for field in ["name", "state_name", "state_code", "municipality_id"]:
+
             value = normalize(capital.get(field, ""))
 
             if not value:
@@ -46,7 +49,14 @@ def suggestions(query, capitals, limit=5):
             score = max(score, current)
 
         if score >= 0.55:
-            matches.append({"name": capital["name"], "state_code": capital["state_code"], "municipality_id": capital["municipality_id"], "score": round(score, 3)})
+            matches.append(
+                {
+                    "name": capital["name"],
+                    "state_code": capital["state_code"],
+                    "municipality_id": capital["municipality_id"],
+                    "score": round(score, 3),
+                }
+            )
 
     matches.sort(key=lambda item: (-item["score"], item["name"]))
 
@@ -59,6 +69,7 @@ def resolve(query, capitals):
     parts = query.strip().split(";")
 
     for index, part in enumerate(parts):
+
         part = part.strip()
 
         if not part:
@@ -68,7 +79,15 @@ def resolve(query, capitals):
 
         if not separator:
             value = part
-            field = "municipality_id" if value.isdecimal() else "date" if re.fullmatch(r"\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4}", value) else "capital"
+            field = (
+                "municipality_id"
+                if value.isdecimal()
+                else (
+                    "date"
+                    if re.fullmatch(r"\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4}", value)
+                    else "capital"
+                )
+            )
 
         field = normalize(field)
         value = value.strip()
@@ -81,6 +100,7 @@ def resolve(query, capitals):
             valid = False
 
             for municipality in capitals:
+
                 if municipality.get("state_code") == state:
                     valid = True
 
@@ -93,24 +113,38 @@ def resolve(query, capitals):
             exact = []
 
             for candidate in matches:
+
                 if candidate["score"] == 1:
                     exact.append(candidate)
 
             if len(exact) == 1:
                 filters["municipality_id"] = exact[0]["municipality_id"]
-            elif matches and matches[0]["score"] >= 0.7 and (len(matches) == 1 or matches[0]["score"] - matches[1]["score"] >= 0.1):
+            elif (
+                matches
+                and matches[0]["score"] >= 0.7
+                and (len(matches) == 1 or matches[0]["score"] - matches[1]["score"] >= 0.1)
+            ):
                 filters["municipality_id"] = matches[0]["municipality_id"]
-                corrected.append("Resultados para " + matches[0]["name"] + " · " + matches[0]["state_code"])
+                corrected.append(
+                    "Resultados para " + matches[0]["name"] + " · " + matches[0]["state_code"]
+                )
             elif matches:
                 for candidate in matches:
-                    selected = "municipality_id=" + str(candidate["municipality_id"])
-                    candidate["query"] = ";".join(parts[:index] + [selected] + parts[index + 1:])
 
-                return {"filters": {}, "suggestions": matches, "message": "Selecione a capital desejada."}
+                    selected = "municipality_id=" + str(candidate["municipality_id"])
+                    candidate["query"] = ";".join(parts[:index] + [selected] + parts[index + 1 :])
+
+                return {
+                    "filters": {},
+                    "suggestions": matches,
+                    "message": "Selecione a capital desejada.",
+                }
             elif field == "capital":
                 filters["text"] = normalize(value)
             else:
-                raise ValueError("Nenhuma capital correspondente. Experimente parte do nome ou a UF.")
+                raise ValueError(
+                    "Nenhuma capital correspondente. Experimente parte do nome ou a UF."
+                )
         elif field in {"municipality_id", "id_ibge"}:
             if not re.fullmatch(r"\d{7}", value):
                 raise ValueError("O código IBGE deve conter sete dígitos.")
@@ -120,6 +154,7 @@ def resolve(query, capitals):
             day = None
 
             for pattern in ["%Y-%m-%d", "%d/%m/%Y"]:
+
                 try:
 
                     day = datetime.strptime(value, pattern).date().isoformat()
@@ -136,7 +171,9 @@ def resolve(query, capitals):
                 raise ValueError("Nome de coluna inválido.")
 
             if filters.get("field"):
-                raise ValueError("Use uma coluna de medição por consulta; combine-a com município e data quando necessário.")
+                raise ValueError(
+                    "Use uma coluna de medição por consulta; combine-a com município e data quando necessário."
+                )
 
             filters.update(field=field, value=normalize(value))
 

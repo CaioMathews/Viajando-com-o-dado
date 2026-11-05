@@ -1,4 +1,5 @@
 from pipeline.shared.quality import has_rows
+
 """Contrato dos nomes, da ordem e das unidades dos CSVs horários do INMET."""
 
 from pyspark.sql import DataFrame
@@ -36,7 +37,9 @@ def validate_headers(dataframe: DataFrame) -> None:
     for column_name in ["source_file", "source_header"]:
 
         if column_name not in dataframe.columns:
-            raise ValueError("Cabeçalho INMET ausente na entrada; revise a fonte e gere novamente a Bronze.")
+            raise ValueError(
+                "Cabeçalho INMET ausente na entrada; revise a fonte e gere novamente a Bronze."
+            )
 
     headers = dataframe.select("source_file", "source_header").distinct()
 

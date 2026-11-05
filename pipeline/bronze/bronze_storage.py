@@ -16,13 +16,22 @@ def prepare_inputs(parameters):
     input_directory = Path(parameters["input_directory"]).resolve()
     output_directory = Path(parameters["output_directory"]).resolve()
 
-    if input_directory == output_directory or input_directory in output_directory.parents or output_directory in input_directory.parents:
+    if (
+        input_directory == output_directory
+        or input_directory in output_directory.parents
+        or output_directory in input_directory.parents
+    ):
         raise ValueError("As pastas de entrada e saída devem ser separadas, sem sobreposição.")
 
     recover_inputs(parameters)
 
 
-def write_bronze(dataframe: DataFrame, output_directory: Path, source_name: str, partition_by_state: bool = True,) -> None:
+def write_bronze(
+    dataframe: DataFrame,
+    output_directory: Path,
+    source_name: str,
+    partition_by_state: bool = True,
+) -> None:
     """Grava a Bronze com validação prévia e recuperação da carga anterior em falhas."""
 
     write_parquet(dataframe, output_directory, source_name, partition_by_state)

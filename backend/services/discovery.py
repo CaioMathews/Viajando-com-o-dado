@@ -33,14 +33,25 @@ class DiscoveryService:
                     with self.reader.connection() as connection:
 
                         table = self.reader.relation(connection, node)
-                        rows = connection.execute("SELECT DISTINCT municipality_id, name, state_code FROM " + table + " ORDER BY municipality_id").fetchall()
+                        rows = connection.execute(
+                            "SELECT DISTINCT municipality_id, name, state_code FROM "
+                            + table
+                            + " ORDER BY municipality_id"
+                        ).fetchall()
 
                     items = []
 
                     for municipality, name, state in rows:
-                        items.append({"municipality_id": municipality, "name": name, "state_code": state})
+
+                        items.append(
+                            {"municipality_id": municipality, "name": name, "state_code": state}
+                        )
                 else:
-                    items = self.reader.gold.records("geocoding", limit=200)["items"] if self.reader.gold else []
+                    items = (
+                        self.reader.gold.records("geocoding", limit=200)["items"]
+                        if self.reader.gold
+                        else []
+                    )
 
                 self._municipalities = items
                 self._signature = signature
@@ -55,7 +66,9 @@ class DiscoveryService:
         field, separator, value = query.partition("=")
         names = {"name", "capital", "municipality_name", "cidade", "uf", "state_code"}
 
-        if ";" not in query and (query.strip().isdecimal() or separator and field.strip().casefold() not in names):
+        if ";" not in query and (
+            query.strip().isdecimal() or separator and field.strip().casefold() not in names
+        ):
             parsed = resolve(query, [])
             selected = parsed["filters"].get("field")
 
@@ -68,10 +81,15 @@ class DiscoveryService:
         states = set()
 
         for item in municipalities:
+
             states.add(item["state_code"])
 
         if query.strip().upper() in states:
-            return {"filters": {"state_code": query.strip().upper()}, "suggestions": [], "message": ""}
+            return {
+                "filters": {"state_code": query.strip().upper()},
+                "suggestions": [],
+                "message": "",
+            }
 
         parsed = resolve(query, municipalities)
         field = parsed["filters"].get("field")
@@ -85,10 +103,14 @@ class DiscoveryService:
         if "reference_date" in filters and dataset != "population":
             return None, filters, None
 
-        if ("observation_date" in filters or "reference_date" in filters) and dataset in {"municipalities", "geocoding"}:
+        if ("observation_date" in filters or "reference_date" in filters) and dataset in {
+            "municipalities",
+            "geocoding",
+        }:
             return None, filters, None
 
         for layer in ["gold", "silver", "bronze"]:
+
             if dataset == "inmet_boundary" and layer == "gold":
                 continue
 
@@ -98,10 +120,18 @@ class DiscoveryService:
 
                 # A Gold preserva dias sem estação. Já as horas só pertencem a
                 # um município pela estação associada; sem ela, não há vínculo.
-                if layer != "gold" and filters.get("municipality_id") is not None and dataset in {"inmet_daily", "inmet_boundary"}:
-                    assigned = self.reader.records("gold:inmet_daily", {"municipality_id": filters["municipality_id"]}, limit=1)
+                if (
+                    layer != "gold"
+                    and filters.get("municipality_id") is not None
+                    and dataset in {"inmet_daily", "inmet_boundary"}
+                ):
+                    assigned = self.reader.records(
+                        "gold:inmet_daily", {"municipality_id": filters["municipality_id"]}, limit=1
+                    )
 
-                    if not assigned["items"] or not assigned["items"][0]["values"].get("station_code"):
+                    if not assigned["items"] or not assigned["items"][0]["values"].get(
+                        "station_code"
+                    ):
                         return None, filters, None
 
                 field = filters.get("field")
@@ -135,6 +165,7 @@ class DiscoveryService:
         datasets = []
 
         for definition in SOURCES:
+
             datasets.append(definition[0])
 
         items = []
@@ -153,6 +184,7 @@ class DiscoveryService:
                 identities = set()
 
                 for capital in capitals:
+
                     identities.add(capital["municipality_id"])
 
                 population_only = len(identities) == 27 and municipality not in identities
@@ -160,18 +192,22 @@ class DiscoveryService:
                 pass
 
         for index in range(dataset_index, len(datasets)):
+
             dataset = datasets[index]
 
             if population_only and dataset != "population":
                 continue
 
             start = offset if index == dataset_index else 0
-            node_id, filters, page = self.preferred(dataset, parsed["filters"], limit=limit + 1, offset=start)
+            node_id, filters, page = self.preferred(
+                dataset, parsed["filters"], limit=limit + 1, offset=start
+            )
 
             if node_id is None:
                 continue
 
             for row_index, record in enumerate(page["items"]):
+
                 items.append(record)
                 positions.append({"dataset_index": index, "offset": start + row_index})
 
@@ -183,4 +219,10 @@ class DiscoveryService:
         if not items and field:
             message = "Nenhum registro correspondente nas camadas atuais. Campos de agregados mensais ou treino só podem ser pesquisados se existirem neste projeto."
 
-        return {"items": items[:limit], "message": message, "suggestions": [], "has_more": len(items) > limit, "next_cursor": positions[limit] if len(items) > limit else None}
+        return {
+            "items": items[:limit],
+            "message": message,
+            "suggestions": [],
+            "has_more": len(items) > limit,
+            "next_cursor": positions[limit] if len(items) > limit else None,
+        }

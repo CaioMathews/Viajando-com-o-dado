@@ -38,11 +38,13 @@ class CollectionPublicationTests(unittest.TestCase):
 
     def seed(self):
         for target in self.targets:
+
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(json.dumps(self.old), encoding="utf-8")
 
     def assert_pair(self, expected):
         for target in self.targets:
+
             self.assertEqual(json.loads(target.read_text(encoding="utf-8")), expected)
 
         root = collection_storage.transaction_directory(self.data)
@@ -51,7 +53,7 @@ class CollectionPublicationTests(unittest.TestCase):
 
     def probe(self, phase):
         # os._exit simula a morte do processo, sem executar except/finally.
-        program = '''
+        program = """
 import os
 from pathlib import Path
 import sys
@@ -78,9 +80,14 @@ if phase == "restore_interrupted":
     storage.recover_collections(data)
 else:
     storage.save_collection([{"version": "new"}], [{"version": "new"}], data, "SP", "2025")
-'''
-        result = subprocess.run([sys.executable, "-B", "-c", program, str(self.data), phase], cwd=ROOT,
-                                capture_output=True, text=True, timeout=45)
+"""
+        result = subprocess.run(
+            [sys.executable, "-B", "-c", program, str(self.data), phase],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=45,
+        )
         self.assertEqual(result.returncode, 23, result.stdout + result.stderr)
 
     def test_success_replaces_both_files(self):
@@ -138,6 +145,7 @@ else:
         collection_storage.recover_collections(self.data)
 
         for target in self.targets:
+
             self.assertFalse(target.exists())
 
     def test_crash_and_interrupted_recovery_restore_previous_pair(self):

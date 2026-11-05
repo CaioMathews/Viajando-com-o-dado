@@ -22,15 +22,33 @@ DATA_DIRECTORY = Path(__file__).resolve().parents[2] / "data"
 
 # Códigos IBGE das 26 capitais estaduais e de Brasília.
 CAPITAL_IDS = {
-    "AC": 1200401, "AL": 2704302, "AM": 1302603,
-    "AP": 1600303, "BA": 2927408, "CE": 2304400,
-    "DF": 5300108, "ES": 3205309, "GO": 5208707,
-    "MA": 2111300, "MG": 3106200, "MS": 5002704,
-    "MT": 5103403, "PA": 1501402, "PB": 2507507,
-    "PE": 2611606, "PI": 2211001, "PR": 4106902,
-    "RJ": 3304557, "RN": 2408102, "RO": 1100205,
-    "RR": 1400100, "RS": 4314902, "SC": 4205407,
-    "SE": 2800308, "SP": 3550308, "TO": 1721000,
+    "AC": 1200401,
+    "AL": 2704302,
+    "AM": 1302603,
+    "AP": 1600303,
+    "BA": 2927408,
+    "CE": 2304400,
+    "DF": 5300108,
+    "ES": 3205309,
+    "GO": 5208707,
+    "MA": 2111300,
+    "MG": 3106200,
+    "MS": 5002704,
+    "MT": 5103403,
+    "PA": 1501402,
+    "PB": 2507507,
+    "PE": 2611606,
+    "PI": 2211001,
+    "PR": 4106902,
+    "RJ": 3304557,
+    "RN": 2408102,
+    "RO": 1100205,
+    "RR": 1400100,
+    "RS": 4314902,
+    "SC": 4205407,
+    "SE": 2800308,
+    "SP": 3550308,
+    "TO": 1721000,
 }
 
 
@@ -44,8 +62,14 @@ def save_json(data, output_path: Path) -> None:
 
     try:
 
-        with NamedTemporaryFile(mode="w", encoding="utf-8", dir=output_path.parent,
-                                prefix=f".{output_path.name}.", suffix=".tmp", delete=False) as output_file:
+        with NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=output_path.parent,
+            prefix=f".{output_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as output_file:
 
             temporary_path = Path(output_file.name)
             json.dump(data, output_file, ensure_ascii=False, indent=2)
@@ -86,26 +110,30 @@ def consume(year: str = "2025") -> list[str]:
 
         municipalities_by_state.setdefault(state_code, []).append(municipality)
 
-
     # Confere se todas as capitais foram encontradas antes de salvar os arquivos.
     missing_states = set(CAPITAL_IDS) - set(municipalities_by_state)
 
     if missing_states:
-        raise ValueError(f"Capitais ausentes no IBGE para as UFs: {', '.join(sorted(missing_states))}")
+        raise ValueError(
+            f"Capitais ausentes no IBGE para as UFs: {', '.join(sorted(missing_states))}"
+        )
 
     # Salva os registros das capitais do IBGE antes de iniciar as consultas de clima.
     for state_code, state_municipalities in municipalities_by_state.items():
+
         save_json(
             state_municipalities,
             DATA_DIRECTORY / "ibge" / "municipalities" / f"{state_code}.json",
         )
 
     for state_code, state_municipalities in municipalities_by_state.items():
+
         state_coordinates = []
         state_weather = []
         state_errors = []
 
         for municipality in state_municipalities:
+
             city_name = municipality["nome"]
             municipality_id = municipality["id"]
             search_name = f"{city_name}, {state_code}"
@@ -118,32 +146,38 @@ def consume(year: str = "2025") -> list[str]:
 
                 latitude, longitude = get_coordinates(search_name)
 
-                state_coordinates.append({
-                    "municipality_id": municipality_id,
-                    "name": city_name,
-                    "latitude": latitude,
-                    "longitude": longitude,
-                })
+                state_coordinates.append(
+                    {
+                        "municipality_id": municipality_id,
+                        "name": city_name,
+                        "latitude": latitude,
+                        "longitude": longitude,
+                    }
+                )
 
                 stage = "open_meteo"
                 weather_data = get_weather(latitude, longitude, start_date, end_date)
 
-                state_weather.append({
-                    "municipality_id": municipality_id,
-                    "name": city_name,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "weather": weather_data,
-                })
+                state_weather.append(
+                    {
+                        "municipality_id": municipality_id,
+                        "name": city_name,
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "weather": weather_data,
+                    }
+                )
 
             except (requests.RequestException, ValueError) as error:
                 # Registra a falha sem interromper os demais municípios.
-                state_errors.append({
-                    "municipality_id": municipality_id,
-                    "name": city_name,
-                    "stage": stage,
-                    "error": str(error),
-                })
+                state_errors.append(
+                    {
+                        "municipality_id": municipality_id,
+                        "name": city_name,
+                        "stage": stage,
+                        "error": str(error),
+                    }
+                )
                 print(f"Falha em {search_name}: {error}")
 
         error_path = DATA_DIRECTORY / "errors" / f"{state_code}.json"
@@ -157,13 +191,17 @@ def consume(year: str = "2025") -> list[str]:
             # Remove a falha anterior somente depois de salvar a coleta bem-sucedida.
             error_path.unlink(missing_ok=True)
 
-        print(f"{state_code}: {len(state_weather)} municípios com clima; {len(state_errors)} falhas.")
+        print(
+            f"{state_code}: {len(state_weather)} municípios com clima; {len(state_errors)} falhas."
+        )
 
     return failed_states
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Coleta dados das capitais no IBGE e na Open-Meteo.")
+    parser = argparse.ArgumentParser(
+        description="Coleta dados das capitais no IBGE e na Open-Meteo."
+    )
     parser.add_argument("--year", default="2025", help="Ano meteorológico. Padrão: 2025.")
 
     arguments = parser.parse_args()

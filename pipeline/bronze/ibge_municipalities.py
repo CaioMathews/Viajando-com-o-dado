@@ -9,55 +9,70 @@ from pipeline.bronze.bronze_storage import prepare_inputs, write_bronze
 
 
 @execution.step("bronze", "ibge_municipalities", before_inputs=prepare_inputs)
-def ingest_municipalities(spark: SparkSession, input_directory: Path, output_directory: Path,) -> DataFrame:
+def ingest_municipalities(
+    spark: SparkSession,
+    input_directory: Path,
+    output_directory: Path,
+) -> DataFrame:
     """Lê os JSONs de municípios do IBGE e grava a Bronze em Parquet, separada por UF."""
 
-    region_schema = StructType([
-        StructField("id", LongType(), True),
-        StructField("sigla", StringType(), True),
-        StructField("nome", StringType(), True),
-    ])
+    region_schema = StructType(
+        [
+            StructField("id", LongType(), True),
+            StructField("sigla", StringType(), True),
+            StructField("nome", StringType(), True),
+        ]
+    )
 
-    state_schema = StructType([
-        StructField("id", LongType(), True),
-        StructField("sigla", StringType(), True),
-        StructField("nome", StringType(), True),
-        StructField("regiao", region_schema, True),
-    ])
+    state_schema = StructType(
+        [
+            StructField("id", LongType(), True),
+            StructField("sigla", StringType(), True),
+            StructField("nome", StringType(), True),
+            StructField("regiao", region_schema, True),
+        ]
+    )
 
     # Mesorregiões e regiões intermediárias têm a mesma estrutura de campos.
-    regional_area_schema = StructType([
-        StructField("id", LongType(), True),
-        StructField("nome", StringType(), True),
-        StructField("UF", state_schema, True),
-    ])
+    regional_area_schema = StructType(
+        [
+            StructField("id", LongType(), True),
+            StructField("nome", StringType(), True),
+            StructField("UF", state_schema, True),
+        ]
+    )
 
-    microregion_schema = StructType([
-        StructField("id", LongType(), True),
-        StructField("nome", StringType(), True),
-        StructField("mesorregiao", regional_area_schema, True),
-    ])
+    microregion_schema = StructType(
+        [
+            StructField("id", LongType(), True),
+            StructField("nome", StringType(), True),
+            StructField("mesorregiao", regional_area_schema, True),
+        ]
+    )
 
-    immediate_region_schema = StructType([
-        StructField("id", LongType(), True),
-        StructField("nome", StringType(), True),
-        StructField("regiao-intermediaria", regional_area_schema, True),
-    ])
+    immediate_region_schema = StructType(
+        [
+            StructField("id", LongType(), True),
+            StructField("nome", StringType(), True),
+            StructField("regiao-intermediaria", regional_area_schema, True),
+        ]
+    )
 
     # Mantém os nomes e as hierarquias originais da resposta do IBGE.
-    schema = StructType([
-        StructField("id", LongType(), True),
-        StructField("nome", StringType(), True),
-        StructField("microrregiao", microregion_schema, True),
-        StructField("regiao-imediata", immediate_region_schema, True),
-    ])
+    schema = StructType(
+        [
+            StructField("id", LongType(), True),
+            StructField("nome", StringType(), True),
+            StructField("microrregiao", microregion_schema, True),
+            StructField("regiao-imediata", immediate_region_schema, True),
+        ]
+    )
 
     # Os JSONs contêm listas de registros distribuídas em várias linhas.
     input_path = input_directory.resolve().as_posix()
 
     municipalities = (
-        spark.read
-        .schema(schema)
+        spark.read.schema(schema)
         .option("pathGlobFilter", "*.json")
         .option("multiLine", True)
         .option("mode", "FAILFAST")

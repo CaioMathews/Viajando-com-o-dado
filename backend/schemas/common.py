@@ -28,6 +28,7 @@ def preserve_special_numbers(value):
         result = {}
 
         for key, item in value.items():
+
             result[key] = preserve_special_numbers(item)
 
         return result
@@ -36,6 +37,7 @@ def preserve_special_numbers(value):
         result = []
 
         for item in value:
+
             result.append(preserve_special_numbers(item))
 
         return result

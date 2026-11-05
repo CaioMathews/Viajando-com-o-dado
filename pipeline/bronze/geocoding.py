@@ -9,22 +9,27 @@ from pipeline.bronze.bronze_storage import prepare_inputs, write_bronze
 
 
 @execution.step("bronze", "geocoding", before_inputs=prepare_inputs)
-def ingest_geocoding(spark: SparkSession, input_directory: Path, output_directory: Path,) -> DataFrame:
+def ingest_geocoding(
+    spark: SparkSession,
+    input_directory: Path,
+    output_directory: Path,
+) -> DataFrame:
     """Lê os JSONs de coordenadas e grava a Bronze em Parquet, separada por UF."""
 
-    schema = StructType([
-        StructField("municipality_id", LongType(), True),
-        StructField("name", StringType(), True),
-        StructField("latitude", DoubleType(), True),
-        StructField("longitude", DoubleType(), True),
-    ])
+    schema = StructType(
+        [
+            StructField("municipality_id", LongType(), True),
+            StructField("name", StringType(), True),
+            StructField("latitude", DoubleType(), True),
+            StructField("longitude", DoubleType(), True),
+        ]
+    )
 
     # Os JSONs contêm listas de registros distribuídas em várias linhas.
     input_path = input_directory.resolve().as_posix() + "/*.json"
 
     coordinates = (
-        spark.read
-        .schema(schema)
+        spark.read.schema(schema)
         .option("multiLine", True)
         .option("mode", "FAILFAST")
         .json(input_path)

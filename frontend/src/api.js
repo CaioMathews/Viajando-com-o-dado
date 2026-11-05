@@ -1,6 +1,5 @@
 import { API_URL } from "../config.js";
 
-
 export function storedValue(key, fallback) {
   try {
     return localStorage.getItem(key) || fallback;
@@ -9,7 +8,6 @@ export function storedValue(key, fallback) {
   }
 }
 
-
 export function saveValue(key, value) {
   try {
     localStorage.setItem(key, value);
@@ -17,7 +15,6 @@ export function saveValue(key, value) {
     // A sessão continua funcionando quando o armazenamento do navegador está bloqueado.
   }
 }
-
 
 export class Api {
   constructor(base = storedValue("vcd-api", API_URL)) {
@@ -51,17 +48,23 @@ export class Api {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 180000);
     const abort = () => controller.abort();
+
     signal?.addEventListener("abort", abort, { once: true });
 
-    if (signal?.aborted) controller.abort();
+    if (signal?.aborted) {
+      controller.abort();
+    }
 
     try {
       const response = await fetch(this.url(path, parameters), { signal: controller.signal });
       let body;
+
       try {
         body = await response.json();
       } catch {
-        throw new Error(`A API está temporariamente indisponível (HTTP ${response.status}). Aguarde a inicialização e tente novamente.`);
+        throw new Error(
+          `A API está temporariamente indisponível (HTTP ${response.status}). Aguarde a inicialização e tente novamente.`,
+        );
       }
 
       if (!response.ok) {
@@ -70,12 +73,17 @@ export class Api {
         if (Array.isArray(message)) {
           const messages = [];
 
-          for (const item of message) messages.push(item.msg);
+          for (const item of message) {
+            messages.push(item.msg);
+          }
+
           message = messages.join("; ");
         }
 
         const error = new Error(message || `A API respondeu com HTTP ${response.status}.`);
+
         error.status = response.status;
+
         throw error;
       }
 
@@ -86,7 +94,9 @@ export class Api {
       }
 
       if (error instanceof TypeError) {
-        throw new Error("Não foi possível conectar à API. Confira se o backend está iniciado e se o endereço está correto.");
+        throw new Error(
+          "Não foi possível conectar à API. Confira se o backend está iniciado e se o endereço está correto.",
+        );
       }
 
       throw error;
@@ -95,5 +105,4 @@ export class Api {
       signal?.removeEventListener("abort", abort);
     }
   }
-
 }

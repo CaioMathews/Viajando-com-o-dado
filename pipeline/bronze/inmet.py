@@ -10,40 +10,42 @@ from pipeline.bronze.bronze_storage import prepare_inputs, write_bronze
 
 
 @execution.step("bronze", "inmet", before_inputs=prepare_inputs)
-def ingest_inmet(spark: SparkSession, input_directory: Path, output_directory: Path,) -> DataFrame:
+def ingest_inmet(
+    spark: SparkSession,
+    input_directory: Path,
+    output_directory: Path,
+) -> DataFrame:
     """Lê os CSVs horários do INMET e grava a Bronze em Parquet, separada por UF."""
 
-    schema = StructType([
-        StructField("observation_date", StringType(), True),
-        StructField("observation_time_utc", StringType(), True),
-        StructField("precipitation_mm", StringType(), True),
-        StructField("station_pressure_mb", StringType(), True),
-        StructField("station_pressure_max_mb", StringType(), True),
-        StructField("station_pressure_min_mb", StringType(), True),
-        StructField("global_radiation_kj_m2", StringType(), True),
-        StructField("air_temperature_c", StringType(), True),
-        StructField("dew_point_temperature_c", StringType(), True),
-        StructField("air_temperature_max_c", StringType(), True),
-        StructField("air_temperature_min_c", StringType(), True),
-        StructField("dew_point_temperature_max_c", StringType(), True),
-        StructField("dew_point_temperature_min_c", StringType(), True),
-        StructField("relative_humidity_max_percent", StringType(), True),
-        StructField("relative_humidity_min_percent", StringType(), True),
-        StructField("relative_humidity_percent", StringType(), True),
-        StructField("wind_direction_degrees", StringType(), True),
-        StructField("wind_gust_ms", StringType(), True),
-        StructField("wind_speed_ms", StringType(), True),
-        StructField("trailing_empty_field", StringType(), True),
-    ])
+    schema = StructType(
+        [
+            StructField("observation_date", StringType(), True),
+            StructField("observation_time_utc", StringType(), True),
+            StructField("precipitation_mm", StringType(), True),
+            StructField("station_pressure_mb", StringType(), True),
+            StructField("station_pressure_max_mb", StringType(), True),
+            StructField("station_pressure_min_mb", StringType(), True),
+            StructField("global_radiation_kj_m2", StringType(), True),
+            StructField("air_temperature_c", StringType(), True),
+            StructField("dew_point_temperature_c", StringType(), True),
+            StructField("air_temperature_max_c", StringType(), True),
+            StructField("air_temperature_min_c", StringType(), True),
+            StructField("dew_point_temperature_max_c", StringType(), True),
+            StructField("dew_point_temperature_min_c", StringType(), True),
+            StructField("relative_humidity_max_percent", StringType(), True),
+            StructField("relative_humidity_min_percent", StringType(), True),
+            StructField("relative_humidity_percent", StringType(), True),
+            StructField("wind_direction_degrees", StringType(), True),
+            StructField("wind_gust_ms", StringType(), True),
+            StructField("wind_speed_ms", StringType(), True),
+            StructField("trailing_empty_field", StringType(), True),
+        ]
+    )
 
     # Lê cada arquivo inteiro para separar os metadados das medições.
     input_path = input_directory.resolve().as_posix() + "/*.CSV"
 
-    files = (
-        spark.read
-        .format("binaryFile")
-        .load(input_path)
-    )
+    files = spark.read.format("binaryFile").load(input_path)
 
     # O INMET usa Latin-1; a decodificação mantém os acentos do arquivo original.
     files = files.withColumn(
@@ -74,6 +76,7 @@ def ingest_inmet(spark: SparkSession, input_directory: Path, output_directory: P
 
     # As oito primeiras linhas contêm os dados da estação, após o ponto e vírgula.
     for line_number, field_name in enumerate(metadata_fields, start=1):
+
         metadata_line = F.element_at(F.col("source_lines"), line_number)
         metadata_value = F.regexp_extract(metadata_line, r"^[^;]*;(.*)$", 1)
         metadata_columns.append(metadata_value.alias(field_name))

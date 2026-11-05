@@ -23,7 +23,12 @@ def record(node, municipality=4312617, day=None):
     elif node.endswith("population"):
         key["reference_date"] = "2025-07-01"
 
-    return {"node_id": node, "key": key, "record_id": record_id(node, key), "values": {"name": "Muitos Capões", **key}}
+    return {
+        "node_id": node,
+        "key": key,
+        "record_id": record_id(node, key),
+        "values": {"name": "Muitos Capões", **key},
+    }
 
 
 class FakeReader:
@@ -34,6 +39,7 @@ class FakeReader:
         self.rows = {}
 
         for row in records:
+
             self.rows[row["record_id"]] = row
 
     def node(self, node_id):
@@ -46,6 +52,7 @@ class FakeReader:
         result = []
 
         for key in keys:
+
             row = self.rows.get(record_id(node_id, key))
 
             if row:
@@ -75,17 +82,29 @@ class FakeTrace:
         result = []
 
         for source, target in self.edges:
+
             origin, neighbor = (target, source) if direction == "parents" else (source, target)
 
             if origin["record_id"] == current["record_id"]:
-                result.append({"node_id": neighbor["node_id"], "key": neighbor["key"], "relation": "published" if neighbor["node_id"].startswith("load:") else "transform"})
+                result.append(
+                    {
+                        "node_id": neighbor["node_id"],
+                        "key": neighbor["key"],
+                        "relation": (
+                            "published" if neighbor["node_id"].startswith("load:") else "transform"
+                        ),
+                    }
+                )
 
         return result
 
 
 class JourneyTests(unittest.TestCase):
     def complete(self, trace, seed):
-        with patch("backend.services.journey.execution.current", return_value={"status": "succeeded", "run_id": "current"}):
+        with patch(
+            "backend.services.journey.execution.current",
+            return_value={"status": "succeeded", "run_id": "current"},
+        ):
 
             return JourneyService(trace).complete(seed["node_id"], seed["key"])
 
@@ -96,12 +115,19 @@ class JourneyTests(unittest.TestCase):
         location = record("gold:geocoding")
         municipality = record("gold:municipalities")
         unrelated = record("gold:population")
-        edges = [(silver, gold), (gold, loaded), (location, gold), (municipality, location), (municipality, unrelated)]
+        edges = [
+            (silver, gold),
+            (gold, loaded),
+            (location, gold),
+            (municipality, location),
+            (municipality, unrelated),
+        ]
         trace = FakeTrace([silver, gold, loaded, location, municipality, unrelated], edges)
         result = self.complete(trace, gold)
         ids = set()
 
         for node in result["nodes"]:
+
             ids.add(node["id"])
 
         self.assertTrue(result["complete"])
@@ -134,12 +160,16 @@ class DiscoveryTests(unittest.TestCase):
 
         with duckdb.connect() as connection:
 
-            connection.execute("COPY (SELECT 4312617 AS municipality_id, 'Muitos Capões' AS name, 'RS' AS state_code, DATE '2025-07-01' AS reference_date, 2937::BIGINT AS population_estimate UNION ALL SELECT 4312618, 'Outro', 'RS', DATE '2025-07-01', 12937) TO ? (FORMAT PARQUET)", [str(directory / "rows.parquet")])
+            connection.execute(
+                "COPY (SELECT 4312617 AS municipality_id, 'Muitos Capões' AS name, 'RS' AS state_code, DATE '2025-07-01' AS reference_date, 2937::BIGINT AS population_estimate UNION ALL SELECT 4312618, 'Outro', 'RS', DATE '2025-07-01', 12937) TO ? (FORMAT PARQUET)",
+                [str(directory / "rows.parquet")],
+            )
 
         self.service = DiscoveryService(self.reader)
 
     def test_non_capital_names_and_exact_numeric_population(self):
         for query in ["Muitos Capoes", "municipality_name=Muitos Capões", "population=2937"]:
+
             result = self.service.search(query)
             self.assertEqual(len(result["items"]), 1, query)
             self.assertEqual(result["items"][0]["values"]["population_estimate"], 2937)
@@ -148,7 +178,9 @@ class DiscoveryTests(unittest.TestCase):
         self.assertFalse(self.service.search("population=2937.1")["items"])
 
     def test_batch_keys_return_only_requested_records(self):
-        result = self.reader.get_many("silver:population", [{"municipality_id": 4312617, "reference_date": "2025-07-01"}])
+        result = self.reader.get_many(
+            "silver:population", [{"municipality_id": 4312617, "reference_date": "2025-07-01"}]
+        )
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["values"]["name"], "Muitos Capões")
 

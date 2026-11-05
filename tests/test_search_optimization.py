@@ -1,4 +1,5 @@
 """Confere isolamento das consultas, chaves compostas e paginação após a otimização."""
+
 from pathlib import Path
 import tempfile
 import unittest
@@ -22,7 +23,10 @@ class SearchOptimizationTests(unittest.TestCase):
     def write_population(self, population):
         with duckdb.connect() as connection:
 
-            connection.execute("COPY (SELECT 4312617::BIGINT AS municipality_id, 'Muitos Capões' AS name, 'RS' AS state_code, DATE '2025-07-01' AS reference_date, ?::BIGINT AS population_estimate) TO ? (FORMAT PARQUET)", [population, str(self.directory / "rows.parquet")])
+            connection.execute(
+                "COPY (SELECT 4312617::BIGINT AS municipality_id, 'Muitos Capões' AS name, 'RS' AS state_code, DATE '2025-07-01' AS reference_date, ?::BIGINT AS population_estimate) TO ? (FORMAT PARQUET)",
+                [population, str(self.directory / "rows.parquet")],
+            )
 
     def test_next_request_sees_replaced_files(self):
         with self.reader.session():
@@ -51,9 +55,14 @@ class SearchOptimizationTests(unittest.TestCase):
     def test_metric_parse_does_not_read_municipality_files(self):
         service = DiscoveryService(self.reader)
 
-        with patch.object(service, "municipalities", side_effect=AssertionError("Leitura desnecessária")):
+        with patch.object(
+            service, "municipalities", side_effect=AssertionError("Leitura desnecessária")
+        ):
 
-            self.assertEqual(service.parse("humidity_pct=41")["filters"], {"field": "relative_humidity_percent", "value": "41"})
+            self.assertEqual(
+                service.parse("humidity_pct=41")["filters"],
+                {"field": "relative_humidity_percent", "value": "41"},
+            )
 
     def test_key_filters_do_not_mix_compound_keys(self):
         target = self.reader.directory / self.reader.node("silver:inmet_daily")["path"]
@@ -61,24 +70,40 @@ class SearchOptimizationTests(unittest.TestCase):
 
         with duckdb.connect() as connection:
 
-            connection.execute("COPY (SELECT * FROM (VALUES ('A101', TIMESTAMP '2025-01-01 00:00:00'), ('A101', TIMESTAMP '2025-01-01 01:00:00'), ('A102', TIMESTAMP '2025-01-01 00:00:00'), ('A102', TIMESTAMP '2025-01-01 01:00:00')) AS t(station_code,timestamp_utc)) TO ? (FORMAT PARQUET)", [str(target / "rows.parquet")])
+            connection.execute(
+                "COPY (SELECT * FROM (VALUES ('A101', TIMESTAMP '2025-01-01 00:00:00'), ('A101', TIMESTAMP '2025-01-01 01:00:00'), ('A102', TIMESTAMP '2025-01-01 00:00:00'), ('A102', TIMESTAMP '2025-01-01 01:00:00')) AS t(station_code,timestamp_utc)) TO ? (FORMAT PARQUET)",
+                [str(target / "rows.parquet")],
+            )
 
         with self.reader.session():
 
-            rows = self.reader.get_many("silver:inmet_daily", [{"station_code": "A101", "timestamp_utc": "2025-01-01T00:00:00.000000Z"}, {"station_code": "A102", "timestamp_utc": "2025-01-01T01:00:00.000000Z"}])
+            rows = self.reader.get_many(
+                "silver:inmet_daily",
+                [
+                    {"station_code": "A101", "timestamp_utc": "2025-01-01T00:00:00.000000Z"},
+                    {"station_code": "A102", "timestamp_utc": "2025-01-01T01:00:00.000000Z"},
+                ],
+            )
             self.assertEqual(len(rows), 2)
             identities = set()
 
             for row in rows:
+
                 identities.add((row["key"]["station_code"], row["key"]["timestamp_utc"]))
 
-            self.assertEqual(identities, {("A101", "2025-01-01T00:00:00.000000Z"), ("A102", "2025-01-01T01:00:00.000000Z")})
+            self.assertEqual(
+                identities,
+                {("A101", "2025-01-01T00:00:00.000000Z"), ("A102", "2025-01-01T01:00:00.000000Z")},
+            )
 
     def test_schema_cache_is_invalidated_when_a_file_changes(self):
         self.assertNotIn("new_field", self.reader.columns("silver:population"))
 
         with duckdb.connect() as connection:
 
-            connection.execute("COPY (SELECT 4312617::BIGINT AS municipality_id, 'new' AS new_field) TO ? (FORMAT PARQUET)", [str(self.directory / "rows.parquet")])
+            connection.execute(
+                "COPY (SELECT 4312617::BIGINT AS municipality_id, 'new' AS new_field) TO ? (FORMAT PARQUET)",
+                [str(self.directory / "rows.parquet")],
+            )
 
         self.assertIn("new_field", self.reader.columns("silver:population"))
