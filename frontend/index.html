@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Explore as capitais brasileiras e acompanhe a origem e as transformações dos dados.">
+    <title>Viajando com o Dado</title>
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./styles.css?v=20261105-details-4">
+    <script type="module" src="./src/app.js?v=20261105-details-4"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <nav aria-label="Navegação principal">
+        <a href="#pipeline" id="pipeline-tab" class="nav-link">Pipeline</a>
+        <a href="#map" id="map-tab" class="nav-link active" aria-current="page">Mapa do Brasil</a>
+      </nav>
+      <form id="search-form" class="search" role="search" hidden>
+        <span aria-hidden="true">⌕</span>
+        <input id="search-input" aria-label="Buscar dados" placeholder="Município, estação, código IBGE ou coluna=valor" autocomplete="off">
+        <button type="submit" aria-label="Pesquisar">↵</button>
+      </form>
+      <div class="header-actions">
+        <button id="connection-button" class="connection" aria-label="Configurar API" title="Configurar conexão com a API"><i></i><span>API</span></button>
+        <button id="theme-button" class="theme-button" aria-label="Alternar tema"><span aria-hidden="true">☼</span><span id="theme-label">Escuro</span></button>
+      </div>
+    </header>
+
+    <main class="map-layout">
+      <div class="page-heading" hidden>
+        <div>
+          <h1 id="page-title">Mapa do Brasil</h1>
+          <p id="page-description">Explore a origem, as transformações e os destinos de cada registro.</p>
+        </div>
+        <button id="refresh-button" class="button subtle">↻ Atualizar</button>
+      </div>
+      <div id="notice" role="status" aria-live="polite"></div>
+
+      <section id="pipeline-page" aria-labelledby="page-title" hidden>
+        <div class="workspace" id="pipeline-workspace">
+          <div class="graph-frame">
+            <div id="graph-viewport" class="graph-viewport" tabindex="0" aria-label="Fluxo da pipeline. Arraste para mover; use a roda do mouse ou os botões para ampliar.">
+              <div id="graph" class="graph"></div>
+            </div>
+            <div class="canvas-controls" aria-label="Controles da pipeline">
+              <button id="zoom-out" aria-label="Diminuir zoom da pipeline">−</button>
+              <output id="zoom-label" aria-label="Zoom da pipeline">100%</output>
+              <button id="zoom-in" aria-label="Aumentar zoom da pipeline">+</button>
+              <button id="fit-graph">⛶ Enquadrar</button>
+            </div>
+          </div>
+          <aside id="details-panel" class="side-panel" aria-label="Detalhes da seleção" hidden></aside>
+        </div>
+      </section>
+
+      <section id="map-page" aria-labelledby="page-title">
+        <div class="workspace map-workspace">
+          <div class="map-frame">
+            <div class="map-bottom-left">
+              <div class="canvas-controls map-controls" aria-label="Controles do mapa">
+                <button id="map-zoom-out" aria-label="Diminuir zoom do mapa">−</button>
+                <output id="map-zoom-label" aria-label="Zoom do mapa">100%</output>
+                <button id="map-zoom-in" aria-label="Aumentar zoom do mapa">+</button>
+                <button id="fit-map" aria-label="Ver todo o Brasil">⛶ Enquadrar</button>
+              </div>
+            </div>
+            <svg id="brazil-map" viewBox="0 0 800 780" aria-label="Mapa interativo dos estados e capitais brasileiras" role="group"></svg>
+            <div id="map-message" class="map-message" role="status"></div>
+          </div>
+          <aside id="capital-panel" class="side-panel capital-panel" aria-label="Dados da capital"></aside>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="connection-dialog">
+      <form id="connection-form">
+        <h2>Conexão com o backend</h2>
+        <p>Informe o endereço da API local do projeto.</p>
+        <label for="api-url">Endereço da API</label>
+        <input type="url" id="api-url" required placeholder="http://127.0.0.1:8000">
+        <p id="connection-error" class="error-text" role="alert"></p>
+        <div class="dialog-actions"><button type="button" id="cancel-connection" class="button">Cancelar</button><button class="button primary" type="submit">Salvar e conectar</button></div>
+      </form>
+    </dialog>
+    <noscript>Ative o JavaScript para explorar os dados e consultar a API.</noscript>
+  </body>
+</html>

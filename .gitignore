@@ -1,0 +1,28 @@
+# Segredos e configuração pessoal
+.env
+.env.*
+!.env.example
+
+# Ambientes, caches e arquivos gerados
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.pytest_cache/
+.ipynb_checkpoints/
+*.log
+.DS_Store
+Thumbs.db
+
+# Dados locais e saídas; o guia de obtenção permanece versionável
+data/*
+!data/README.md
+
+# Testes locais, conforme a organização solicitada
+/tests/
+/frontend/tests/
+
+# Preferências do editor
+.vscode/
+.idea/

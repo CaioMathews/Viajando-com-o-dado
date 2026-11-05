@@ -1,0 +1,25 @@
+# Dependências diretas do projeto, com as versões verificadas no ambiente atual.
+# Requer Java para o Spark e um servidor PostgreSQL para a carga.
+
+# Coleta e processamento das camadas
+requests==2.34.2
+pyspark==4.2.1
+xlrd==2.0.2
+timezonefinder==9.2.0
+
+# Gráficos e execução dos notebooks
+matplotlib==3.11.2
+ipykernel==7.4.0
+nbformat==5.11.1
+
+# Carregamento no PostgreSQL e configuração local
+psycopg[binary]==3.3.6
+python-dotenv==1.2.4
+
+# Consulta dos Parquets atuais e backend HTTP
+duckdb==2.0.0
+fastapi==0.162.0
+uvicorn==0.54.0
+
+# Testes HTTP do backend
+httpx==0.28.1
