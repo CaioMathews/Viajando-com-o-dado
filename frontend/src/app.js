@@ -1,6 +1,6 @@
 import { Api, saveValue, storedValue } from "./api.js";
-import { DetailsPanel } from "./details.js?v=20261105-calendar-2";
-import { BrazilMap } from "./map.js?v=20261105-calendar-2";
+import { DetailsPanel } from "./details.js?v=20261105-records-4";
+import { BrazilMap } from "./map.js?v=20261105-records-4";
 import { buildNodes, loadPipeline, PipelineGraph } from "./pipeline.js";
 import { element, message } from "./ui.js";
 
@@ -24,7 +24,7 @@ const details = new DetailsPanel(
     const node = nodes.find((item) => item.id === record.node_id);
 
     if (node) {
-      selectNode(node, { record, focusPath: true });
+      selectNode(node, { q: details.query, record, focusPath: true });
     }
   },
   selectNode,
@@ -54,7 +54,14 @@ function closeDetails() {
 
 function selectNode(node, filters) {
   if (!filters) {
-    filters = { journey: details.journey };
+    filters = { q: details.query || "", journey: details.journey };
+  } else {
+    filters = { ...filters };
+  }
+
+  // Só preserva o percurso se o nó aberto realmente participa dele.
+  if (filters.journey && !filters.journey.nodes.some((item) => item.id === node.id)) {
+    filters.journey = null;
   }
 
   selectedNode = node;
@@ -263,9 +270,27 @@ async function pollProgress(generation) {
     const changedRun = updated.execution?.run_id !== pipelineState.execution?.run_id;
     const completed =
       updated.execution?.status === "succeeded" &&
-      (changedRun || pipelineState.execution?.status !== "succeeded");
+      (changedRun ||
+        pipelineState.execution?.status !== "succeeded" ||
+        !overview ||
+        !capitals.length);
 
-    if (JSON.stringify(updated) !== JSON.stringify(pipelineState)) {
+    let publication;
+
+    // Só confirma a nova publicação depois de obter os dados do mapa.
+    // Se houver falha temporária, a próxima consulta tenta novamente.
+    if (completed) {
+      publication = await Promise.all([
+        api.get("/overview"),
+        api.get("/datasets/geocoding/records", { limit: 200 }),
+      ]);
+
+      if (generation !== progressGeneration) {
+        return;
+      }
+    }
+
+    if (JSON.stringify(updated) !== JSON.stringify(pipelineState) || publication) {
       pipelineState = updated;
       nodes = buildNodes(pipelineState);
       details.nodes = nodes;
@@ -279,15 +304,8 @@ async function pollProgress(generation) {
       graph.runStatus = pipelineState.execution?.status;
       graph.render(nodes, selectedNode?.id);
 
-      if (completed) {
-        const [nextOverview, nextCapitals] = await Promise.all([
-          api.get("/overview"),
-          api.get("/datasets/geocoding/records", { limit: 200 }),
-        ]);
-
-        if (generation !== progressGeneration) {
-          return;
-        }
+      if (publication) {
+        const [nextOverview, nextCapitals] = publication;
 
         overview = nextOverview;
         capitals = nextCapitals.items;
@@ -332,9 +350,14 @@ async function search(event, selectedQuery) {
 
   if (!query.trim()) {
     notice("");
+    details.query = "";
+    details.journey = null;
+    graph.highlightTrace();
 
     if (selectedNode) {
       selectNode(selectedNode);
+    } else {
+      details.close();
     }
 
     return;

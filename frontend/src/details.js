@@ -203,8 +203,18 @@ export class DetailsPanel {
   async searchPath(node) {
     const box = this.pathBox;
     const ticket = this.request;
+    const query = this.query;
+    const searchTicket = (this.pathSearchRequest || 0) + 1;
 
-    if (!this.query) {
+    this.pathSearchRequest = searchTicket;
+
+    const isCurrent = () =>
+      ticket === this.request &&
+      query === this.query &&
+      box === this.pathBox &&
+      searchTicket === this.pathSearchRequest;
+
+    if (!query) {
       box.replaceChildren(
         element(
           "p",
@@ -216,12 +226,22 @@ export class DetailsPanel {
       return;
     }
 
-    const result = await this.api.get(`/pipeline/nodes/${node.id}/records`, {
-      q: this.query,
-      limit: 2,
-    });
+    let result;
 
-    if (ticket !== this.request) {
+    try {
+      result = await this.api.get(`/pipeline/nodes/${node.id}/records`, {
+        q: query,
+        limit: 2,
+      });
+    } catch (error) {
+      if (!isCurrent()) {
+        return;
+      }
+
+      throw error;
+    }
+
+    if (!isCurrent()) {
       return;
     }
 
@@ -229,7 +249,7 @@ export class DetailsPanel {
       this.record = result.items[0];
       await this.trace(this.record);
 
-      if (ticket === this.request && result.message) {
+      if (isCurrent() && result.message) {
         box.prepend(element("p", { className: "small" }, result.message));
       }
 
@@ -238,7 +258,7 @@ export class DetailsPanel {
 
     await this.records(node, 0, box);
 
-    if (ticket === this.request && result.items.length) {
+    if (isCurrent() && result.items.length) {
       box.prepend(
         element(
           "p",
@@ -475,13 +495,33 @@ export class DetailsPanel {
 
   async records(node, offset = 0, box = element("div")) {
     const ticket = this.request;
-    const result = await this.api.get(`/pipeline/nodes/${node.id}/records`, {
-      q: this.query,
-      limit: 10,
-      offset,
-    });
+    const query = this.query;
+    const pageRequest = {};
 
-    if (ticket !== this.request) {
+    this.recordRequests ??= new WeakMap();
+    this.recordRequests.set(box, pageRequest);
+
+    const isCurrent = () =>
+      ticket === this.request &&
+      query === this.query &&
+      this.recordRequests.get(box) === pageRequest;
+    let result;
+
+    try {
+      result = await this.api.get(`/pipeline/nodes/${node.id}/records`, {
+        q: query,
+        limit: 10,
+        offset,
+      });
+    } catch (error) {
+      if (!isCurrent()) {
+        return box;
+      }
+
+      throw error;
+    }
+
+    if (!isCurrent()) {
       return box;
     }
 
@@ -591,6 +631,7 @@ export class DetailsPanel {
   async search(query, cursor = {}, previous = []) {
     const ticket = ++this.request;
 
+    this.query = query;
     this.journey = null;
     this.container.hidden = false;
     document.querySelector("#pipeline-workspace").classList.add("with-panel");
@@ -739,6 +780,12 @@ export class DetailsPanel {
       return;
     }
 
+    const traceTicket = (this.traceRequest || 0) + 1;
+
+    this.traceRequest = traceTicket;
+    this.journey = null;
+    this.record = record;
+    this.onTrace([], []);
     box.replaceChildren(
       message(
         "Calculando percurso completo",
@@ -754,7 +801,7 @@ export class DetailsPanel {
         key: JSON.stringify(record.key),
       });
 
-      if (ticket !== this.request) {
+      if (ticket !== this.request || traceTicket !== this.traceRequest) {
         return;
       }
 
@@ -769,7 +816,7 @@ export class DetailsPanel {
 
       this.onTrace(identifiers, result.edges);
     } catch (error) {
-      if (ticket === this.request) {
+      if (ticket === this.request && traceTicket === this.traceRequest) {
         box.replaceChildren(message("Caminho indisponível", error.message));
       }
     }

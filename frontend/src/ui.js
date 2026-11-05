@@ -50,6 +50,16 @@ export function format(value, unit = "") {
   return String(value);
 }
 
+export function formatCell(value, column) {
+  const identifier = column === "id" || column.endsWith("_id") || column.endsWith(".id");
+
+  if (identifier && (typeof value === "number" || typeof value === "bigint")) {
+    return String(value);
+  }
+
+  return format(value);
+}
+
 export function dateTime(value) {
   if (!value) {
     return "—";
@@ -124,11 +134,13 @@ export function table(rows, action, preferred = []) {
     }
 
     for (const key of columns) {
+      const label = formatCell(row[key], key);
+
       tr.append(
         element(
           "td",
-          { className: row[key] === null ? "null-value" : "", title: format(row[key]) },
-          row[key] === null ? "NULL" : format(row[key]),
+          { className: row[key] === null ? "null-value" : "", title: label },
+          row[key] === null ? "NULL" : label,
         ),
       );
     }

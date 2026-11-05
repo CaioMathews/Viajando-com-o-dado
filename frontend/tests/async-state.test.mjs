@@ -157,3 +157,39 @@ test("uma falha antiga no autocomplete preserva as sugestões mais recentes", as
   await timers.shift()();
   assert.deepEqual(rows, []);
 });
+
+test("falha temporária ao carregar a publicação é tentada novamente no próximo acompanhamento", async () => {
+  const { context, configured } = pollContext();
+  let attempts = 0;
+
+  context.api.get = async (path) => {
+    if (path === "/overview") {
+      attempts += 1;
+
+      if (attempts === 1) {
+        throw new Error("Falha temporária");
+      }
+
+      return { tag: "recovered" };
+    }
+
+    return { items: [{ municipality_id: 1 }] };
+  };
+
+  await context.pollProgress(1);
+  await context.pollProgress(1);
+
+  assert.equal(attempts, 2);
+  assert.deepEqual(configured, ["recovered"]);
+});
+
+test("o acompanhamento recupera dados do mapa ausentes na primeira carga", async () => {
+  const { context, configured } = pollContext();
+
+  context.pipelineState = { execution: { run_id: "run", status: "succeeded" }, nodes: [] };
+  context.overview = null;
+  context.capitals = [];
+  await context.pollProgress(1);
+
+  assert.deepEqual(configured, ["current"]);
+});

@@ -9,7 +9,7 @@ import {
   nodeStatus,
 } from "../src/pipeline.js";
 import { DetailsPanel } from "../src/details.js";
-import { format } from "../src/ui.js";
+import { format, formatCell } from "../src/ui.js";
 
 test("valores ausentes, zero e texto vazio permanecem distintos", () => {
   assert.equal(format(null), "—");
@@ -170,4 +170,15 @@ test("o destaque usa somente conexões reais, mesmo com os dois nós no percurso
   assert.equal(wires[0].selected, true);
   assert.equal(wires[0].marker, "url(#arrow-trace)");
   assert.equal(wires[1].selected, false);
+});
+
+test("IDs não recebem separadores; medidas e população mantêm a formatação", () => {
+  assert.equal(formatCell(2611606, "municipality_id"), "2611606");
+  assert.equal(formatCell(3550308, "id"), "3550308");
+  assert.equal(formatCell(260005, "microrregiao.id"), "260005");
+  assert.equal(formatCell(26, "state_id"), "26");
+  assert.equal(formatCell("0007", "station_id"), "0007");
+  assert.equal(formatCell(1588376, "population_estimate"), "1.588.376");
+  assert.equal(formatCell(26.9, "temperature_mean_c"), "26,9");
+  assert.equal(formatCell(null, "municipality_id"), "—");
 });
