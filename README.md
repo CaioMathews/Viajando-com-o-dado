@@ -304,15 +304,15 @@ O backend usa DuckDB em memória para consultar Parquets e psycopg para o Postgr
 
 Os parâmetros `key` são objetos JSON com as chaves informadas no resultado da pesquisa. Caminhos de download ficam restritos às fontes cadastradas. A API não oferece endpoints para executar SQL, apagar dados ou iniciar a pipeline.
 
-No desenvolvimento, a validação inclui testes de coleta, preservação de arquivos em falhas, recuperação, contratos INMET, qualidade, carga, busca e percursos com múltiplos pais. Os diretórios de testes são mantidos localmente e ignorados no Git, conforme a organização adotada. Quando disponíveis:
+No desenvolvimento, a validação inclui testes de coleta, preservação de arquivos em falhas, recuperação, contratos INMET, qualidade, carga, busca e percursos com múltiplos pais. Os testes estão incluídos em `tests/` e `frontend/tests/`. Para executá-los:
 
 ```powershell
 python -B -m unittest discover -s tests
-node --test frontend/tests/frontend.test.mjs
+node --test frontend/tests/*.test.mjs
 docker compose config --quiet
 ```
 
-Os testes de integração PostgreSQL exigem um banco exclusivo para testes; nunca aponte testes de carga ao banco da aplicação. As rotas e o mapa também permitem verificar o resultado publicado sem os arquivos locais de teste.
+Os testes de integração PostgreSQL exigem um banco exclusivo para testes; nunca aponte testes de carga ao banco da aplicação. As rotas e o mapa também permitem verificar o resultado publicado.
 
 ## Limites e decisões
 

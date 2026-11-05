@@ -275,15 +275,15 @@ DuckDB reads current Parquet files in memory; psycopg accesses PostgreSQL. SQL i
 
 `key` is the JSON object supplied by search results. Downloads are restricted to registered source directories. The API has no endpoints for arbitrary SQL, data deletion or starting the pipeline.
 
-Development checks cover collection, file preservation/recovery, INMET contracts, quality, publication, search and multi-parent journeys. Test directories are maintained locally and ignored by Git in this project’s public layout. When those files are available:
+Development checks cover collection, file preservation/recovery, INMET contracts, quality, publication, search and multi-parent journeys. Tests are included in `tests/` and `frontend/tests/`. To run them:
 
 ```powershell
 python -B -m unittest discover -s tests
-node --test frontend/tests/frontend.test.mjs
+node --test frontend/tests/*.test.mjs
 docker compose config --quiet
 ```
 
-PostgreSQL integration tests require an exclusive test database; never point load tests at the application database. The API and interface also allow inspection of the published result without local test files.
+PostgreSQL integration tests require an exclusive test database; never point load tests at the application database. The API and interface also allow inspection of the published result.
 
 ## Scope and limitations
 

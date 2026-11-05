@@ -8,4 +8,4 @@ A pesquisa global consulta `/pipeline/search`, incluindo registros que não cheg
 
 No Compose, `config.docker.js` configura a origem `/api`. Localmente, `config.js` aponta para a porta 8000. A opção API permite ajustar ou restaurar o endereço no navegador.
 
-Veja os [READMEs da raiz](../README.md) para fontes, exemplos e execução completa. Os testes locais da interface são ignorados pelo Git conforme a organização solicitada.
+Veja os [READMEs da raiz](../README.md) para fontes, exemplos e execução completa. Os testes da interface estão incluídos em `frontend/tests/`; execute `node --test frontend/tests/*.test.mjs` na raiz do projeto.
