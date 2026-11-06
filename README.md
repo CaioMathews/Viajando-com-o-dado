@@ -45,6 +45,35 @@ Parâmetros utilizados: `intrarregiao=UF`, `formato=application/vnd.geo+json` e 
 
 A malha fica incluída no frontend e é desenhada como SVG; abrir a aplicação não consulta o IBGE novamente. Os pontos das capitais e os indicadores vêm da Gold. Os contornos servem apenas como apoio visual, sem participar dos cálculos de qualidade ou da associação de estações.
 
+### Como interpretar os indicadores do mapa
+
+O seletor de data escolhe o **dia meteorológico**, no fuso local da capital. A população tem uma referência independente: selecionar **01/01/2025** e visualizar a estimativa de **01/07/2025** não transforma essa estimativa em uma contagem de habitantes de janeiro. O mapa apresenta as duas referências; não interpola uma população diária.
+
+| Aspecto | Open-Meteo neste projeto | INMET neste projeto |
+| --- | --- | --- |
+| Natureza | Reanálise ERA5 em uma célula de grade próxima das coordenadas consultadas | Observações de uma estação automática associada à capital |
+| Resolução recebida | Indicadores já agregados por dia | Medições horárias, agregadas pelo projeto no calendário local |
+| Qualidade mostrada | Presença do registro, disponibilidade das cinco variáveis, ausências, valores inválidos e alertas | Associação da estação, horas válidas e cobertura específica por indicador |
+| Significado de completude | As cinco variáveis diárias estão disponíveis e atendem às regras do projeto | A cobertura é calculada a partir das horas válidas; o requisito depende do indicador |
+| Rajada | Não solicitada nesta coleta | Publicada quando há cobertura suficiente |
+
+**“5 de 5 indicadores” não equivale a “24 de 24 horas”.** A resposta diária da Open-Meteo não permite comprovar cobertura horária de 100%. Da mesma forma, um indicador disponível e sem alertas não comprova exatidão absoluta da medição ou representatividade de todos os bairros.
+
+Diferenças entre as fontes podem decorrer da grade de reanálise, do ponto e da altitude da estação e das formas de agregação. A aplicação mantém os valores separados. O contorno destacado no mapa representa a UF como contexto geográfico; os indicadores pertencem à capital e à fonte selecionadas, não a todo o estado.
+
+### Exemplo de conferência dos valores
+
+Nos arquivos utilizados na revisão da demonstração, São Paulo tem código IBGE **3550308** e população estimada de **11.904.961 habitantes**, com referência em **01/07/2025**. O valor consta também da [publicação oficial das estimativas de 2025 do IBGE](https://ftp.ibge.gov.br/Estimativas_de_Populacao/Estimativas_2025/POP2025_20251031.pdf).
+
+| Fonte e dia em São Paulo | Média | Mínima | Máxima | Chuva | Vento máximo | Rajada máxima |
+| --- | --- | --- | --- | --- | --- | --- |
+| Open-Meteo · 01/01/2025 | 22,7 °C | 17,8 °C | 28,1 °C | 7,4 mm | 3,58 m/s | Não coletada |
+| INMET · 17/01/2025 | 24,05 °C | 20,4 °C | 28,3 °C | 1 mm | 3,8 m/s | 8,5 m/s |
+
+Essas linhas ilustram conferências independentes em **datas diferentes**; não constituem uma comparação entre fontes no mesmo dia. Na primeira, o JSON informa vento de **12,9 km/h**: dividir por **3,6** resulta em **3,5833… m/s**, arredondado para 3,58 m/s na interface. Na segunda, a média recalculada no CSV é **24,054166… °C**; a estação é **A701 · São Paulo – Mirante**, a aproximadamente **5,92 km** das coordenadas da capital usadas pelo projeto. Cada indicador desse dia tem 24 horas válidas.
+
+Os exemplos documentam os arquivos conferidos, não uma garantia sobre futuras coletas ou publicações. Para repetir a conferência, selecione a mesma capital, data e fonte, confira unidades e qualidade e use as origens indicadas no percurso. Ao recalcular o INMET, respeite a distinção entre instante da mensagem e hora encerrada descrita abaixo.
+
 ## Arquitetura
 
 ```mermaid
@@ -110,6 +139,12 @@ Horários são interpretados em UTC e associados ao dia no fuso local. Mediçõe
 
 Temperaturas são apresentadas em °C, precipitação em mm e vento em m/s. O vento da Open-Meteo é convertido de km/h para m/s na Silver. A rajada exibida neste recorte vem do INMET; ela não faz parte dos campos solicitados à Open-Meteo.
 
+### Onde cada verificação acontece
+
+Na Open-Meteo, a **Silver** reconhece as unidades de entrada, expande as listas diárias, interpreta os valores e converte vento de km/h para m/s. A **Gold** recebe os valores padronizados, confere identidade e coerência da qualidade, rejeita datas duplicadas, relaciona o cadastro das capitais e completa o calendário. Apenas a variável inválida é anulada; os valores interpretáveis e os metadados de origem permanecem disponíveis na Silver.
+
+A aba **Verificações** descreve regras cadastradas manualmente; não é um certificado de que cada regra foi executada para o registro escolhido. O resultado de execução aparece no Resumo, e a qualidade do dado deve ser consultada nos próprios campos. No catálogo atual, a lista Open-Meteo é compartilhada entre Silver e Gold: por isso, a frase “Unidades reconhecidas antes da conversão” pode aparecer na Gold, embora essa operação seja realizada na Silver. Esta explicação registra a diferença entre a descrição exibida e a implementação; a documentação não altera a interface.
+
 ## Como funciona o rastreamento
 
 O projeto acompanha **uma execução atual**, com os valores nas camadas e vínculos leves de proveniência. Não mantém snapshots, versões de código nem histórico completo de alterações.
@@ -124,6 +159,17 @@ O projeto acompanha **uma execução atual**, com os valores nas camadas e vínc
 O grafo destaca os nós participantes e **as conexões reais** do registro. Cada etapa mostra contagem e exemplos; os exemplos limitados não reduzem o percurso calculado. Os valores completos das camadas continuam disponíveis nas abas Registros.
 
 O rastreamento exige uma publicação correspondente à execução concluída. Alterações comuns nos arquivos são detectadas por nome, tamanho e data de modificação; isso não é uma prova criptográfica contra adulteração. Fontes originais também são conferidas nas novas publicações. Percursos acima de 40 mil registros pedem um filtro mais específico em vez de serem apresentados como completos após truncamento.
+
+### Como ler as contagens e os títulos do grafo
+
+Os cartões mostram o **total do conjunto de dados naquela etapa**. O painel Caminho mostra apenas os **nós e registros participantes do percurso selecionado**. Assim, “13 nós · 13 registros participantes” pode coexistir com um cartão de 9.855 linhas: são escopos de contagem diferentes. Nós esmaecidos ficam fora daquele percurso, sem indicar necessariamente falha ou ausência de dados.
+
+- **27 linhas na Bronze Open-Meteo → 9.855 na Silver:** cada linha Bronze preserva uma resposta anual de uma capital; a Silver expande as 365 datas. Esse aumento não representa, por si só, duplicação indevida.
+- **População Bronze → Silver → Gold:** a Bronze conserva também linhas da planilha que precisam ser interpretadas; a Silver reúne os municípios extraídos; a Gold seleciona as capitais. Uma redução de linhas deve ser interpretada conforme essas operações, não como perda automática de dados.
+- **“Estações INMET” na Gold/PostgreSQL:** apesar do título, cada registro publicado representa uma **capital e um dia**, com a estação escolhida, indicadores agregados e cobertura. Não é uma tabela com uma linha por estação.
+- **Fonte → Bronze:** a prévia da fonte utiliza a leitura bruta da Bronze. Ver o mesmo conteúdo nos dois nós não representa uma nova medição independente; o arquivo original permanece identificado pela proveniência.
+
+O percurso confirma quais registros e dependências foram associados à saída. Ele não prova, sozinho, que a fonte está correta nem que toda verificação descrita aprovou aquele registro.
 
 ## Executar tudo com Docker Compose
 

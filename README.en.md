@@ -44,6 +44,33 @@ Parameters: `intrarregiao=UF`, `formato=application/vnd.geo+json`, `qualidade=mi
 
 The geometry is bundled with the frontend and rendered as SVG; opening the app does not request it from IBGE again. Capital points and indicators come from Gold. State outlines are visual context and do not participate in quality calculations or station assignments.
 
+### Reading map indicators
+
+The date selector chooses the **weather day in the capital's local timezone**. Population has an independent reference date: viewing weather for **2025-01-01** alongside the estimate for **2025-07-01** does not make that estimate a January population count. The application does not interpolate daily population.
+
+| Aspect | Open-Meteo in this project | INMET in this project |
+| --- | --- | --- |
+| Nature | ERA5 reanalysis for a grid cell near the requested coordinates | Observations from an automatic station assigned to the capital |
+| Input resolution | Already aggregated daily indicators | Hourly observations aggregated by the project into local-calendar days |
+| Displayed quality | Record presence, availability of five variables, missing/invalid fields and warnings | Station assignment, valid hours and coverage for each indicator |
+| Completeness | Five daily variables available under the project's rules | Hourly coverage evaluated against each indicator's requirement |
+| Gusts | Not requested in this collection | Published when coverage is sufficient |
+
+**“5 of 5 indicators” does not mean “24 of 24 hours”.** The daily Open-Meteo response does not establish 100% hourly coverage. Available values without warnings do not establish absolute accuracy or representativeness of every neighbourhood. Differences between sources may reflect the reanalysis grid, station location/elevation and aggregation methods. State outlines provide geographic context; the indicators concern the selected capital and source, not the whole state.
+
+### Worked value checks
+
+In the files checked for the demonstration, São Paulo has IBGE ID **3550308** and an estimated **11,904,961 residents**, referenced to **2025-07-01**. This matches the [official IBGE 2025 estimates](https://ftp.ibge.gov.br/Estimativas_de_Populacao/Estimativas_2025/POP2025_20251031.pdf).
+
+| Source and São Paulo date | Mean | Minimum | Maximum | Rain | Maximum wind | Maximum gust |
+| --- | --- | --- | --- | --- | --- | --- |
+| Open-Meteo · 2025-01-01 | 22.7 °C | 17.8 °C | 28.1 °C | 7.4 mm | 3.58 m/s | Not collected |
+| INMET · 2025-01-17 | 24.05 °C | 20.4 °C | 28.3 °C | 1 mm | 3.8 m/s | 8.5 m/s |
+
+These are independent checks on **different dates**, not a same-day source comparison. The first JSON contains **12.9 km/h** wind: dividing by **3.6** gives **3.5833… m/s**, displayed as 3.58 m/s. The second mean recalculated from the CSV is **24.054166… °C**. Station **A701 · São Paulo – Mirante** is approximately **5.92 km** from the capital coordinates used by the project; each indicator on that day has 24 valid hours.
+
+These examples document the files checked, not future collections or publications. To reproduce them, select the same capital/date/source, inspect units and quality, and follow the recorded origins. INMET recalculation must distinguish message instants from completed hourly intervals as explained below.
+
 ## Architecture and transformations
 
 ```mermaid
@@ -95,11 +122,17 @@ Gold selects a fixed station per capital and period. It must be in the same stat
 | Maximum wind speed | Maximum instantaneous speed | 100% |
 | Maximum gust | Maximum interval gust | 100% |
 
-UTC timestamps are assigned to each station’s local day. Instantaneous observations use the message instant; accumulated values and interval extremes use the hour that ended. Compatible next-year boundary hours complete the final local day: same station/state and at most 100 m metadata-coordinate difference.
+UTC timestamps are assigned to the capital's local-calendar day. Instantaneous observations use the message instant; accumulated values and interval extremes use the hour that ended. Compatible next-year boundary hours complete the final local day: same station/state and at most 100 m metadata-coordinate difference.
 
 No eligible station does **not** mean that a state has no stations. It means the available stations failed the project’s assignment criteria for that capital. Missing measurements are not invented.
 
 Temperature uses °C, precipitation mm and wind m/s. Open-Meteo wind speed is converted from km/h in Silver. Gusts in this application come from INMET; they are not requested from Open-Meteo.
+
+### Where checks take place
+
+For Open-Meteo, **Silver** validates input units, expands daily arrays, interprets values and converts wind from km/h to m/s. **Gold** receives standardized values, checks identity and quality consistency, rejects duplicate dates, joins the capital reference and completes the calendar. Only the invalid variable is nulled; interpretable values and provenance remain in Silver.
+
+The **Checks** tab describes manually catalogued rules; it is not a per-record execution certificate. Execution status appears in Summary, while data-quality fields describe the record. The current catalogue shares the Open-Meteo list between Silver and Gold: “Recognized units before conversion” can therefore appear under Gold even though Silver performs that operation. This documents the difference between the displayed description and implementation; it does not change the interface.
 
 ## Current-publication provenance
 
@@ -115,6 +148,17 @@ The project tracks **one current execution**. It does not retain snapshots, hist
 The graph highlights actual participating nodes and edges. Stage examples are limited for readability; counts and graph membership include the complete computed journey. Full current-layer rows remain available through Records.
 
 Journey queries require a matching successful publication. File name, size and modification-time checks detect ordinary replacements; they are not cryptographic tamper proof. New publications also check original source files. Journeys larger than 40,000 records request a narrower filter instead of silently presenting a truncated result as complete.
+
+### Reading graph counts and titles
+
+Node cards show the **total dataset size at that stage**; Journey counts only **participating nodes and records in the selected path**. “13 nodes · 13 participating records” can coexist with a card showing 9,855 rows. Dimmed nodes are outside that path and do not necessarily indicate failed processing or missing data.
+
+- **27 Open-Meteo Bronze rows → 9,855 Silver rows:** each Bronze row preserves one capital's annual response; Silver expands its 365 dates. This increase does not itself indicate duplicate records.
+- **Population Bronze → Silver → Gold:** Bronze preserves spreadsheet rows, Silver extracts municipalities, and Gold selects capitals. Row-count reductions must be interpreted according to these operations.
+- **“INMET stations” in Gold/PostgreSQL:** despite the title, each published row represents a **capital and a day**, with the selected station, aggregated indicators and coverage; it is not one row per station.
+- **Source → Bronze:** the source preview uses the raw Bronze reading. Identical preview content does not represent another independent observation; provenance still identifies the original file.
+
+A journey establishes the records and dependencies associated with an output. It does not itself prove source accuracy or successful execution of every described check for that record.
 
 ## Run with Docker Compose
 
